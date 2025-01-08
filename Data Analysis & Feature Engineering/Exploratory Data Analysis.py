@@ -5,7 +5,7 @@ import seaborn as sns
 import numpy as np
 
 # Load the dataset
-file_path = 'train.xlsx'
+file_path = '../train.xlsx'
 df = pd.read_excel(file_path, sheet_name='prices_2')
 
 # Step 1: Basic Information and Structure
