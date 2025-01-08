@@ -31,10 +31,10 @@ class QAgentDataCenter:
         self,
         environment,
         discount_rate=0.95,
-        bin_size_storage=10,   # A bit bigger than 5
-        bin_size_price=10,     # A bit bigger than 5
-        bin_size_hour=24,      # One bin per hour is convenient
-        bin_size_day=7,        # Mod 7 or so
+        bin_size_storage=5,   # A bit bigger than 5
+        bin_size_price=5,     # A bit bigger than 5
+        bin_size_hour=12,      # One bin per hour is convenient
+        bin_size_day=7,        # Mod 7 or so, TODO: Do we want to add month?
         episodes=2000,
         learning_rate=0.1,
         epsilon=1.0,
@@ -65,8 +65,8 @@ class QAgentDataCenter:
         # store more or less than 170 MWh, or see higher/lower prices, etc.
         self.storage_min = 0.0
         self.storage_max = 170.0
-        self.price_min = 0.0
-        self.price_max = 60.0
+        self.price_min = 0.01
+        self.price_max = 2500.0
         # Hour range is integer 1..24. We'll create 24 bins so each hour is its own bin.
         self.hour_min = 1
         self.hour_max = 24
