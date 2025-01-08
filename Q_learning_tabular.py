@@ -1,26 +1,3 @@
-"""
-Here is a revised version of the Q-learning code that should actually let the agent
-"start fresh" each episode so it can collect experience and learn.  
-
-**Key point**: The main reason you see "Dataset exhausted" after just a few episodes 
-(and then for every subsequent episode) is that your environment has no reset() method.
-By default, day/hour only move forward. Once the dataset is over, the environment 
-says "terminated" and never returns to day=1. So every new episode starts where 
-the previous one left off (e.g., day=6, day=7, etc.), and the dataset is already exhausted.
-
-**Solution**:
-1. We must manually reset the environment each episode (day=1, hour=1, storage_level=0).
-2. Then call `env.observation()` to get the initial state again.
-
-Below is a code example where we do just that (without modifying env.py). 
-We reinitialize or 'manually reset' those variables at the start of each episode.
-You can keep everything else basically the same.
-
-Additionally, we increase the bin sizes somewhat (just as an example) because 
-with too-few bins the agent might struggle to learn nuances in the environment.
-But that’s optional. The crucial fix is the environment reset each episode.
-"""
-
 import numpy as np
 import random
 import gym
