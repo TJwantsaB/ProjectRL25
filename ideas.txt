@@ -5,3 +5,6 @@ Typically, the environment's reward is just the negative cost of buying
    vs. a cheaper purchase at hour 2.
 
    
+  # TODO: Make bins based on percentages of the price range! Maybe try moving average? Past prices? Try static first
+
+   # Mod 7 or so, TODO: Do we want to add month?
