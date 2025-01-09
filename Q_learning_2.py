@@ -20,7 +20,7 @@ class State:
         """
         Find the discrete bin index for each dimension by comparing value <= bin thresholds.
         """
-        s_idx = next(i for i, b in enumerate(bins_storage) if self.storage_level <= b)
+        s_idx = next(i for i, b in enumerate(bins_storage)  if self.storage_level <= b)
         p_idx = next(i for i, b in enumerate(bins_price)    if self.price         <= b)
         h_idx = next(i for i, b in enumerate(bins_hour)     if self.hour          <= b)
         d_idx = next(i for i, b in enumerate(bins_day)      if self.day           <= b)
@@ -50,13 +50,6 @@ class QAgentDataCenter:
         self.epsilon = epsilon
         self.epsilon_min = epsilon_min
         self.epsilon_decay = epsilon_decay
-
-        # --------------------------------
-        # BINS: Mimic your friend's style
-        # --------------------------------
-        # We define explicit thresholds for each dimension.
-        # The last bin is 999999 to catch anything above the last threshold.
-        # Adjust as you see fit (especially for day if you have e.g. 3 years = ~1095 days).
         
         self.bins_storage = [10 * x for x in range(1, 17)]  # 10, 20, ..., 160
         self.bins_storage.append(999999)                    # catch-all bin
@@ -71,11 +64,6 @@ class QAgentDataCenter:
         self.bins_day = [x for x in range(1, 400)]          # say up to day=399
         self.bins_day.append(999999)
 
-        # -------------
-        # ACTION SPACE
-        # -------------
-        # Friend’s code uses [-1, 0, 1]. You can keep your 5 steps in [-1..+1],
-        # but let's replicate your friend's simpler approach first:
         self.action_space = [-1, 0, 1]
 
         # Q-table shape: [len(bins_storage) x len(bins_price) x len(bins_hour) x len(bins_day) x #actions]
