@@ -3,239 +3,175 @@ import random
 import gym
 from env import DataCenterEnv  # Make sure this import points to your env.py file
 
+
+class State:
+    """
+    A small helper class to store (storage_level, price, hour, day) 
+    and convert them to discrete bin indices.
+    """
+    def __init__(self, storage_level, price, hour, day):
+        self.storage_level = storage_level
+        self.price = price
+        self.hour = hour
+        self.day = day
+        self.digitized_state = (0, 0, 0, 0)
+
+    def digitize(self, bins_storage, bins_price, bins_hour, bins_day):
+        """
+        Find the discrete bin index for each dimension by comparing value <= bin thresholds.
+        """
+        s_idx = next(i for i, b in enumerate(bins_storage) if self.storage_level <= b)
+        p_idx = next(i for i, b in enumerate(bins_price)    if self.price         <= b)
+        h_idx = next(i for i, b in enumerate(bins_hour)     if self.hour          <= b)
+        d_idx = next(i for i, b in enumerate(bins_day)      if self.day           <= b)
+
+        self.digitized_state = (s_idx, p_idx, h_idx, d_idx)
+
+
 class QAgentDataCenter:
     def __init__(
         self,
         environment,
-        discount_rate=0.95,
-        bin_size_storage=5,
-        bin_size_price=5,      # TODO: Make bins based on percentages of the price range! Maybe try moving average? Past prices? Try static first
-        bin_size_hour=12,     
-        bin_size_day=7,        # Mod 7 or so, TODO: Do we want to add month?
-        episodes=2000,
+        discount_rate=0.99,
         learning_rate=0.1,
+        episodes=2000,
         epsilon=1.0,
         epsilon_min=0.05,
         epsilon_decay=0.999
     ):
         """
-        Q-learning agent for the DataCenterEnv.
-
-        The biggest fix we need is to ensure we properly reset the environment
-        each episode, because the environment doesn't have a built-in reset() method.
+        Q-learning agent for the DataCenterEnv, using bin arrays more like your friend's code.
         """
-        self.env = environment
-        self.discount_rate = discount_rate
-        self.bin_size_storage = bin_size_storage
-        self.bin_size_price = bin_size_price
-        self.bin_size_hour = bin_size_hour
-        self.bin_size_day = bin_size_day
 
+        self.env = environment
+        self.discount_rate = discount_rate  # gamma
+        self.learning_rate = learning_rate  # alpha
         self.episodes = episodes
-        self.learning_rate = learning_rate
         self.epsilon = epsilon
         self.epsilon_min = epsilon_min
         self.epsilon_decay = epsilon_decay
 
-        # Define ranges for discretization.
-        # You can tune these if you have reason to believe the datacenter might
-        # store more or less than 170 MWh, or see higher/lower prices, etc.
-        self.storage_min = 0.0
-        self.storage_max = 170.0
-        self.price_min = 0.01
-        self.price_max = 2500.0
-        # Hour range is integer 1..24. We'll create 24 bins so each hour is its own bin.
-        self.hour_min = 1
-        self.hour_max = 24
-        # Day range. We can do day modulo 7 or something. We'll do that in `discretize_state`.
-        self.day_min = 1
-        self.day_max = 365
+        # --------------------------------
+        # BINS: Mimic your friend's style
+        # --------------------------------
+        # We define explicit thresholds for each dimension.
+        # The last bin is 999999 to catch anything above the last threshold.
+        # Adjust as you see fit (especially for day if you have e.g. 3 years = ~1095 days).
+        
+        self.bins_storage = [10 * x for x in range(1, 17)]  # 10, 20, ..., 160
+        self.bins_storage.append(999999)                    # catch-all bin
 
-        # Create bin edges.
-        self.bin_storage_edges = np.linspace(
-            self.storage_min, self.storage_max, self.bin_size_storage
-        )
-        self.bin_price_edges = np.linspace(
-            self.price_min, self.price_max, self.bin_size_price
-        )
-        self.bin_hour_edges = np.linspace(
-            self.hour_min - 0.5, self.hour_max + 0.5, self.bin_size_hour
-        )
-        self.bin_day_edges = np.linspace(
-            self.day_min - 0.5,
-            self.day_min + self.bin_size_day - 0.5,
-            self.bin_size_day
-        )
+        self.bins_price = [5 * x for x in range(1, 41)]     # 5, 10, 15, ... 200
+        self.bins_price.append(999999)
 
-        # Discretize the action space. We'll have 5 possible actions in [-1, -0.5, 0, 0.5, 1].
-        self.discrete_actions = np.linspace(-1.0, 1.0, num=5)
-        self.action_size = len(self.discrete_actions)
+        self.bins_hour = [x for x in range(1, 24)]          # 1..23
+        self.bins_hour.append(999999)                       # hours can be up to 24
 
-        # Create Q-table: shape = [storage_bins, price_bins, hour_bins, day_bins, action_size]
-        self.Q_table = np.zeros(
-            (
-                self.bin_size_storage,
-                self.bin_size_price,
-                self.bin_size_hour,
-                self.bin_size_day,
-                self.action_size
-            )
-        )
+        # day: if you have up to e.g. 365 days, or 3 years = 1095 days, define appropriately:
+        self.bins_day = [x for x in range(1, 400)]          # say up to day=399
+        self.bins_day.append(999999)
 
-        # For logging
-        self.episode_rewards = []
-        self.average_rewards = []
+        # -------------
+        # ACTION SPACE
+        # -------------
+        # Friend’s code uses [-1, 0, 1]. You can keep your 5 steps in [-1..+1],
+        # but let's replicate your friend's simpler approach first:
+        self.action_space = [-1, 0, 1]
 
-    def discretize_state(self, state_raw):
-        """
-        Convert continuous state [storage_level, price, hour, day]
-        into discrete indices for each dimension.
-        """
-        storage_level, price, hour, day = state_raw
-
-        # We can do day modulo bin_size_day if we want a repeating pattern:
-        day_mod = (day - 1) % self.bin_size_day + 1
-
-        idx_storage = np.digitize(storage_level, self.bin_storage_edges) - 1
-        idx_storage = np.clip(idx_storage, 0, self.bin_size_storage - 1)
-
-        idx_price = np.digitize(price, self.bin_price_edges) - 1
-        idx_price = np.clip(idx_price, 0, self.bin_size_price - 1)
-
-        idx_hour = np.digitize(hour, self.bin_hour_edges) - 1
-        idx_hour = np.clip(idx_hour, 0, self.bin_size_hour - 1)
-
-        idx_day = np.digitize(day_mod, self.bin_day_edges) - 1
-        idx_day = np.clip(idx_day, 0, self.bin_size_day - 1)
-
-        return (idx_storage, idx_price, idx_hour, idx_day)
-
-    def epsilon_greedy_action(self, state_disc):
-        """
-        Pick an action index using epsilon-greedy policy.
-        """
-        if random.uniform(0, 1) < self.epsilon:
-            # Explore
-            return np.random.randint(0, self.action_size)
-        else:
-            # Exploit
-            return np.argmax(
-                self.Q_table[
-                    state_disc[0],
-                    state_disc[1],
-                    state_disc[2],
-                    state_disc[3]
-                ]
-            )
+        # Q-table shape: [len(bins_storage) x len(bins_price) x len(bins_hour) x len(bins_day) x #actions]
+        shape = (len(self.bins_storage),
+                 len(self.bins_price),
+                 len(self.bins_hour),
+                 len(self.bins_day),
+                 len(self.action_space))
+        self.Q_table = np.zeros(shape, dtype=float)
 
     def _manual_env_reset(self):
         """
-        Because env.py has no 'reset' method, we manually reset
-        day, hour, and storage_level to start a new episode:
+        Because env.py has no 'reset' method, we manually reset day, hour, storage_level 
+        to start a new episode:
         """
         self.env.day = 1
         self.env.hour = 1
         self.env.storage_level = 0.0
-        # Then call observation() to get the fresh initial state
         return self.env.observation()
 
+    def epsilon_greedy_action(self, state):
+        """
+        Epsilon-greedy policy: pick random action with probability epsilon, 
+        else pick argmax from Q-table.
+        """
+        if random.uniform(0, 1) < self.epsilon:
+            # Explore
+            return np.random.randint(0, len(self.action_space))
+        else:
+            # Exploit
+            s_idx, p_idx, h_idx, d_idx = state.digitized_state
+            return np.argmax(self.Q_table[s_idx, p_idx, h_idx, d_idx, :])
+
     def train(self):
-        """
-        Train the agent over a number of episodes.
-        """
         for episode in range(self.episodes):
-            print(f"Episode {episode + 1}")
+            obs = self._manual_env_reset()
+            # Create a State object for digitization
+            s = State(obs[0], obs[1], obs[2], obs[3])
+            s.digitize(self.bins_storage, self.bins_price, self.bins_hour, self.bins_day)
 
-            # Manually reset environment at start of each episode
-            state = self._manual_env_reset()
             terminated = False
-
             total_reward = 0.0
 
             while not terminated:
-                # If day >= len(price_values), environment says it's out of data
-                # but let's break gracefully if that happens for the *current* episode.
-                # We'll then do a fresh reset next episode.
-
-                #  TODO: Check if next state the last state! 
+                # If out of data, break:
                 if self.env.day >= len(self.env.price_values):
-                    # This is where the environment is done for the data set
                     terminated = True
                     break
 
-                # Discretize state
-                state_disc = self.discretize_state(state)
+                # Epsilon-greedy
+                action_idx = self.epsilon_greedy_action(s)
+                action_value = self.action_space[action_idx]
 
-                # Epsilon-greedy action
-                action_idx = self.epsilon_greedy_action(state_disc)
-                chosen_action = self.discrete_actions[action_idx]
+                # Step in environment
+                obs_next, reward, terminated = self.env.step(action_value)
+                total_reward += reward
 
-                # Step environment
-                next_state, reward, terminated = self.env.step(chosen_action)
-
-                # Discretize next state
-                next_state_disc = self.discretize_state(next_state)
+                # Next state
+                s_next = State(obs_next[0], obs_next[1], obs_next[2], obs_next[3])
+                s_next.digitize(self.bins_storage, self.bins_price, self.bins_hour, self.bins_day)
 
                 # Q-learning update
-                old_value = self.Q_table[
-                    state_disc[0],
-                    state_disc[1],
-                    state_disc[2],
-                    state_disc[3],
-                    action_idx
-                ]
-                next_max = np.max(
-                    self.Q_table[
-                        next_state_disc[0],
-                        next_state_disc[1],
-                        next_state_disc[2],
-                        next_state_disc[3]
-                    ]
+                s_idx, p_idx, h_idx, d_idx = s.digitized_state
+                s_next_idx = s_next.digitized_state
+
+                old_val = self.Q_table[s_idx, p_idx, h_idx, d_idx, action_idx]
+                best_next_val = np.max(self.Q_table[s_next_idx[0], s_next_idx[1], s_next_idx[2], s_next_idx[3], :])
+
+                # TD target
+                td_target = reward + self.discount_rate * best_next_val
+
+                # Update
+                self.Q_table[s_idx, p_idx, h_idx, d_idx, action_idx] = (
+                    old_val + self.learning_rate * (td_target - old_val)
                 )
-                td_target = reward + self.discount_rate * next_max
-                new_value = old_value + self.learning_rate * (td_target - old_value)
-                self.Q_table[
-                    state_disc[0],
-                    state_disc[1],
-                    state_disc[2],
-                    state_disc[3],
-                    action_idx
-                ] = new_value
 
-                total_reward += reward
-                state = next_state
+                # Move to next step
+                s = s_next
 
-            # Decay epsilon after each full episode
+            # Decay epsilon after each episode
             if self.epsilon > self.epsilon_min:
                 self.epsilon *= self.epsilon_decay
 
-            self.episode_rewards.append(total_reward)
-            # Print average every 50 episodes
-            if (episode + 1) % 50 == 0:
-                avg_reward = np.mean(self.episode_rewards[-50:])
-                self.average_rewards.append(avg_reward)
-                print(
-                    f"Episode {episode + 1}, "
-                    f"Avg reward (last 50): {avg_reward:.2f}, "
-                    f"Epsilon: {self.epsilon:.3f}"
-                )
+            print(f"Episode {episode+1}, Total reward: {total_reward:.2f}, Epsilon: {self.epsilon:.3f}")
 
         print("Training finished!")
 
-    def act(self, state):
+    def act(self, obs):
         """
-        Use trained Q-table (greedy) for action selection, no exploration.
+        For greedy testing after training.
         """
-        state_disc = self.discretize_state(state)
-        best_action_idx = np.argmax(
-            self.Q_table[
-                state_disc[0],
-                state_disc[1],
-                state_disc[2],
-                state_disc[3]
-            ]
-        )
-        return self.discrete_actions[best_action_idx]
+        s = State(obs[0], obs[1], obs[2], obs[3])
+        s.digitize(self.bins_storage, self.bins_price, self.bins_hour, self.bins_day)
+        s_idx, p_idx, h_idx, d_idx = s.digitized_state
+        best_action_idx = np.argmax(self.Q_table[s_idx, p_idx, h_idx, d_idx, :])
+        return self.action_space[best_action_idx]
 
 
 if __name__ == "__main__":
@@ -251,37 +187,31 @@ if __name__ == "__main__":
     # Create agent
     agent = QAgentDataCenter(
         environment=env,
-        episodes=100,         # you can reduce or increase
+        discount_rate=0.99,
         learning_rate=0.1,
-        discount_rate=1,
+        episodes=10000,    # Increase for better chance of learning
         epsilon=1.0,
         epsilon_min=0.05,
-        epsilon_decay=0.995   # so we see faster decay for demo
+        epsilon_decay=0.999
     )
 
-    # Train
     agent.train()
 
-    # Test run with the greedy policy
-    print("\nRunning a quick greedy run with the learned policy:")
-
-    # We do a fresh manual reset for the test run:
+    print("\nRunning a quick greedy run after training:")
+    # Manual reset
     env.day = 1
     env.hour = 1
     env.storage_level = 0.0
-    state = env.observation()
-    terminated = False
+    obs = env.observation()
     total_greedy_reward = 0.0
+    terminated = False
 
     while not terminated:
         if env.day >= len(env.price_values):
             break
-        action = agent.act(state)
-        next_state, reward, terminated = env.step(action)
+        action = agent.act(obs)
+        next_obs, reward, terminated = env.step(action)
         total_greedy_reward += reward
-        state = next_state
-        print("Action:", action)
-        print("Next state:", next_state)
-        print("Reward:", reward)
+        obs = next_obs
 
     print(f"Total reward using the greedy policy after training: {total_greedy_reward:.2f}")
