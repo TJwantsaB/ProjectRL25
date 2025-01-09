@@ -8,10 +8,10 @@ class QAgentDataCenter:
         self,
         environment,
         discount_rate=0.95,
-        bin_size_storage=5,   # A bit bigger than 5
-        bin_size_price=5,     # A bit bigger than 5
-        bin_size_hour=12,      # One bin per hour is convenient
-        bin_size_day=7,        # Mod 7 or so, TODO: Do we want to add month?
+        bin_size_storage=5,
+        bin_size_price=5,     
+        bin_size_hour=12,     
+        bin_size_day=7,        
         episodes=2000,
         learning_rate=0.1,
         epsilon=1.0,
@@ -19,10 +19,7 @@ class QAgentDataCenter:
         epsilon_decay=0.999
     ):
         """
-        Q-learning agent for the DataCenterEnv.
-
-        The biggest fix we need is to ensure we properly reset the environment
-        each episode, because the environment doesn't have a built-in reset() method.
+        Q-learning agent for the DataCenterEnv with price bins based on quantiles.
         """
         self.env = environment
         self.discount_rate = discount_rate
@@ -38,26 +35,24 @@ class QAgentDataCenter:
         self.epsilon_decay = epsilon_decay
 
         # Define ranges for discretization.
-        # You can tune these if you have reason to believe the datacenter might
-        # store more or less than 170 MWh, or see higher/lower prices, etc.
         self.storage_min = 0.0
         self.storage_max = 170.0
         self.price_min = 0.01
         self.price_max = 2500.0
-        # Hour range is integer 1..24. We'll create 24 bins so each hour is its own bin.
         self.hour_min = 1
         self.hour_max = 24
-        # Day range. We can do day modulo 7 or something. We'll do that in `discretize_state`.
         self.day_min = 1
         self.day_max = 365
 
-        # Create bin edges.
+        # Create quantile-based bins for price
         self.bin_storage_edges = np.linspace(
             self.storage_min, self.storage_max, self.bin_size_storage
         )
-        self.bin_price_edges = np.linspace(
-            self.price_min, self.price_max, self.bin_size_price
-        )
+        
+        self.bin_price_edges = self._calculate_price_quantiles(self.env.price_values, self.bin_size_price)
+        # print(self.bin_price_edges)
+        # quit()
+        
         self.bin_hour_edges = np.linspace(
             self.hour_min - 0.5, self.hour_max + 0.5, self.bin_size_hour
         )
@@ -71,7 +66,7 @@ class QAgentDataCenter:
         self.discrete_actions = np.linspace(-1.0, 1.0, num=5)
         self.action_size = len(self.discrete_actions)
 
-        # Create Q-table: shape = [storage_bins, price_bins, hour_bins, day_bins, action_size]
+        # Create Q-table
         self.Q_table = np.zeros(
             (
                 self.bin_size_storage,
@@ -85,6 +80,19 @@ class QAgentDataCenter:
         # For logging
         self.episode_rewards = []
         self.average_rewards = []
+
+    def _calculate_price_quantiles(self, price_values, num_bins):
+        """
+        Calculate quantile-based bin edges for prices, focusing only on the middle percentiles.
+        The lowest and highest values in the data will automatically fall into the closest bins.
+        """
+        price_values_flat = np.array(price_values).flatten()
+        
+        # Calculate quantiles, evenly dividing the data into num_bins sections.
+        quantile_edges = np.quantile(price_values_flat, np.linspace(0, 1, num_bins + 1)[1:-1])  # Skip 0% and 100%
+        
+        return quantile_edges
+
 
     def discretize_state(self, state_raw):
         """
@@ -145,6 +153,7 @@ class QAgentDataCenter:
         """
         for episode in range(self.episodes):
             print(f"Episode {episode + 1}")
+            
 
             # Manually reset environment at start of each episode
             state = self._manual_env_reset()
@@ -156,6 +165,8 @@ class QAgentDataCenter:
                 # If day >= len(price_values), environment says it's out of data
                 # but let's break gracefully if that happens for the *current* episode.
                 # We'll then do a fresh reset next episode.
+
+                #  TODO: Check if next state the last state! 
                 if self.env.day >= len(self.env.price_values):
                     # This is where the environment is done for the data set
                     terminated = True
@@ -207,16 +218,12 @@ class QAgentDataCenter:
             if self.epsilon > self.epsilon_min:
                 self.epsilon *= self.epsilon_decay
 
-            self.episode_rewards.append(total_reward)
-            # Print average every 50 episodes
-            if (episode + 1) % 50 == 0:
-                avg_reward = np.mean(self.episode_rewards[-50:])
-                self.average_rewards.append(avg_reward)
-                print(
-                    f"Episode {episode + 1}, "
-                    f"Avg reward (last 50): {avg_reward:.2f}, "
-                    f"Epsilon: {self.epsilon:.3f}"
-                )
+            print(f"Total reward: {total_reward}")
+
+            # chosen_action = self.discrete_actions[action_idx]
+            # print(f"Day {self.env.day}, Hour {self.env.hour}, Action: {chosen_action}")
+            # next_state, reward, terminated = self.env.step(chosen_action)
+            # print(f"Reward: {reward}, Next state: {next_state}")
 
         print("Training finished!")
 
@@ -251,10 +258,10 @@ if __name__ == "__main__":
         environment=env,
         episodes=100,         # you can reduce or increase
         learning_rate=0.1,
-        discount_rate=0.95,
+        discount_rate=0.9,
         epsilon=1.0,
         epsilon_min=0.05,
-        epsilon_decay=0.995   # so we see faster decay for demo
+        epsilon_decay=0.95   # so we see faster decay for demo
     )
 
     # Train

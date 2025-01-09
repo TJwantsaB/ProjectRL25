@@ -1,0 +1,7 @@
+Typically, the environment's reward is just the negative cost of buying 
+   plus the revenue (80% * price * MWh sold). There's no explicit penalty or bonus 
+   for "finishing the day with minimal forced buy," other than cost. 
+   So maybe the agent doesn't see a big difference between forced buy at hour 23 
+   vs. a cheaper purchase at hour 2.
+
+   
