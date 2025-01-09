@@ -64,7 +64,10 @@ class QAgentDataCenter:
 
         # Discretize the action space. We'll have 5 possible actions in [-1, -0.5, 0, 0.5, 1].
         self.discrete_actions = np.linspace(-1.0, 1.0, num=5)
+        # self.discrete_actions = np.linspace(0, 1.0, num=3)
         self.action_size = len(self.discrete_actions)
+        # print(self.discrete_actions)
+        # quit()
 
         # Create Q-table
         self.Q_table = np.zeros(
@@ -259,8 +262,8 @@ if __name__ == "__main__":
         episodes=100,         # you can reduce or increase
         learning_rate=0.1,
         discount_rate=0.9,
-        epsilon=1.0,
-        epsilon_min=0.05,
+        epsilon=0.1,
+        epsilon_min=0.01,
         epsilon_decay=0.95   # so we see faster decay for demo
     )
 
