@@ -9,9 +9,9 @@ class QAgentDataCenter:
         environment,
         discount_rate=0.95,
         bin_size_storage=5,
-        bin_size_price=5,
-        bin_size_hour=4,
-        bin_size_day=7,
+        bin_size_price=5,      # TODO: Make bins based on percentages of the price range! Maybe try moving average? Past prices? Try static first
+        bin_size_hour=12,     
+        bin_size_day=7,        # Mod 7 or so, TODO: Do we want to add month?
         episodes=2000,
         learning_rate=0.1,
         epsilon=1.0,
@@ -19,21 +19,10 @@ class QAgentDataCenter:
         epsilon_decay=0.999
     ):
         """
-        This class implements a Q-learning agent for the DataCenterEnv environment
-        using a tabular approach (similar to the MountainCar Q-learning code).
+        Q-learning agent for the DataCenterEnv.
 
-        Args:
-            environment: The DataCenterEnv instance.
-            discount_rate: Gamma, discount factor for future rewards.
-            bin_size_storage: Number of bins to discretize the storage level.
-            bin_size_price: Number of bins to discretize the electricity price.
-            bin_size_hour: Number of bins for the hour of day (up to 24).
-            bin_size_day: Number of bins for day (you can do day % bin_size_day, for example).
-            episodes: Number of episodes (full runs) to train over.
-            learning_rate: Alpha, how quickly we update Q-values.
-            epsilon: Starting epsilon for epsilon-greedy.
-            epsilon_min: Minimum possible epsilon.
-            epsilon_decay: Factor to multiply epsilon by after each episode (for gradual decay).
+        The biggest fix we need is to ensure we properly reset the environment
+        each episode, because the environment doesn't have a built-in reset() method.
         """
         self.env = environment
         self.discount_rate = discount_rate
@@ -48,17 +37,21 @@ class QAgentDataCenter:
         self.epsilon_min = epsilon_min
         self.epsilon_decay = epsilon_decay
 
-        # 1) Define ranges for discretization
+        # Define ranges for discretization.
+        # You can tune these if you have reason to believe the datacenter might
+        # store more or less than 170 MWh, or see higher/lower prices, etc.
         self.storage_min = 0.0
-        self.storage_max = 170.0   # A chosen upper bound for storage
-        self.price_min = 0.0
-        self.price_max = 60.0      # Based on typical price data
+        self.storage_max = 170.0
+        self.price_min = 0.01
+        self.price_max = 2500.0
+        # Hour range is integer 1..24. We'll create 24 bins so each hour is its own bin.
         self.hour_min = 1
         self.hour_max = 24
+        # Day range. We can do day modulo 7 or something. We'll do that in `discretize_state`.
         self.day_min = 1
-        self.day_max = 365         # For bigger range or day % 7 approach
+        self.day_max = 365
 
-        # 2) Create bin edges
+        # Create bin edges.
         self.bin_storage_edges = np.linspace(
             self.storage_min, self.storage_max, self.bin_size_storage
         )
@@ -74,11 +67,11 @@ class QAgentDataCenter:
             self.bin_size_day
         )
 
-        # 3) Discretize the action space
+        # Discretize the action space. We'll have 5 possible actions in [-1, -0.5, 0, 0.5, 1].
         self.discrete_actions = np.linspace(-1.0, 1.0, num=5)
         self.action_size = len(self.discrete_actions)
 
-        # 4) Create Q-table: shape = [storage_bins, price_bins, hour_bins, day_bins, action_size]
+        # Create Q-table: shape = [storage_bins, price_bins, hour_bins, day_bins, action_size]
         self.Q_table = np.zeros(
             (
                 self.bin_size_storage,
@@ -100,7 +93,7 @@ class QAgentDataCenter:
         """
         storage_level, price, hour, day = state_raw
 
-        # Optionally, mod the day if you only want a repeating cycle:
+        # We can do day modulo bin_size_day if we want a repeating pattern:
         day_mod = (day - 1) % self.bin_size_day + 1
 
         idx_storage = np.digitize(storage_level, self.bin_storage_edges) - 1
@@ -135,21 +128,38 @@ class QAgentDataCenter:
                 ]
             )
 
+    def _manual_env_reset(self):
+        """
+        Because env.py has no 'reset' method, we manually reset
+        day, hour, and storage_level to start a new episode:
+        """
+        self.env.day = 1
+        self.env.hour = 1
+        self.env.storage_level = 0.0
+        # Then call observation() to get the fresh initial state
+        return self.env.observation()
+
     def train(self):
         """
         Train the agent over a number of episodes.
         """
         for episode in range(self.episodes):
-            # Reset environment at start of episode
-            state = self.env.observation()
+            print(f"Episode {episode + 1}")
+
+            # Manually reset environment at start of each episode
+            state = self._manual_env_reset()
             terminated = False
 
             total_reward = 0.0
 
             while not terminated:
-                # Check if day exceeds the data size
+                # If day >= len(price_values), environment says it's out of data
+                # but let's break gracefully if that happens for the *current* episode.
+                # We'll then do a fresh reset next episode.
+
+                #  TODO: Check if next state the last state! 
                 if self.env.day >= len(self.env.price_values):
-                    print(f"Dataset exhausted. Terminating episode {episode + 1}.")
+                    # This is where the environment is done for the data set
                     terminated = True
                     break
 
@@ -200,11 +210,15 @@ class QAgentDataCenter:
                 self.epsilon *= self.epsilon_decay
 
             self.episode_rewards.append(total_reward)
-            # Print average every N episodes
+            # Print average every 50 episodes
             if (episode + 1) % 50 == 0:
                 avg_reward = np.mean(self.episode_rewards[-50:])
                 self.average_rewards.append(avg_reward)
-                print(f"Episode {episode+1}, Avg reward (last 50): {avg_reward:.2f}, Epsilon: {self.epsilon:.3f}")
+                print(
+                    f"Episode {episode + 1}, "
+                    f"Avg reward (last 50): {avg_reward:.2f}, "
+                    f"Epsilon: {self.epsilon:.3f}"
+                )
 
         print("Training finished!")
 
@@ -225,11 +239,6 @@ class QAgentDataCenter:
 
 
 if __name__ == "__main__":
-    """
-    Example main loop that uses QAgentDataCenter to train on the DataCenterEnv.
-    Similar to your main.py, but with tabular Q-learning in place of random actions.
-    """
-
     import argparse
 
     parser = argparse.ArgumentParser()
@@ -242,12 +251,12 @@ if __name__ == "__main__":
     # Create agent
     agent = QAgentDataCenter(
         environment=env,
-        episodes=2000,
+        episodes=100,         # you can reduce or increase
         learning_rate=0.1,
-        discount_rate=0.95,
+        discount_rate=1,
         epsilon=1.0,
         epsilon_min=0.05,
-        epsilon_decay=0.999
+        epsilon_decay=0.995   # so we see faster decay for demo
     )
 
     # Train
@@ -255,14 +264,24 @@ if __name__ == "__main__":
 
     # Test run with the greedy policy
     print("\nRunning a quick greedy run with the learned policy:")
+
+    # We do a fresh manual reset for the test run:
+    env.day = 1
+    env.hour = 1
+    env.storage_level = 0.0
     state = env.observation()
     terminated = False
     total_greedy_reward = 0.0
 
     while not terminated:
+        if env.day >= len(env.price_values):
+            break
         action = agent.act(state)
         next_state, reward, terminated = env.step(action)
         total_greedy_reward += reward
         state = next_state
+        print("Action:", action)
+        print("Next state:", next_state)
+        print("Reward:", reward)
 
     print(f"Total reward using the greedy policy after training: {total_greedy_reward:.2f}")
