@@ -1,0 +1,26 @@
+# State: [storage_level, price, hour, day]
+
+Consider a datacenter that requires 120 MWh of energy everyday that it needs to buy from the grid at a maximum power rate of 10MW.
+An excess of energy supplied to the datacenter of 50MWh.
+
+The datacenter can also act as a storage system by selling to the grid at a maximum power rate of 10MW as long as it is
+compensated by buying electricity at other time steps.
+
+It should however never fall below 0 MWh and reach at least 120MWh of positive energy supply by the end of the day.
+
+Selling electricity to the grid only provides 80% compensation of the grid price due to the electricity losses and financial
+agreements with the grid.
+-----------------------------------------------------------------------------------------------------------------------------------------
+
+    On train set:
+
+Total reward: -7393363.77196744 - Random
+Total reward: -5759783.399999973 - Buy first 12 (No selling)
+Total reward(22): -4960864.799999981 - Moving average (22 hours, No selling)
+
+
+    On validation set:
+
+Total reward(22): -3415481.799999994 - Moving average (22 hours, no sell)
+
+
