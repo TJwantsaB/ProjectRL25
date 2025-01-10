@@ -16,6 +16,7 @@ agreements with the grid.
 
 Total reward: -7393363.77196744 - Random
 Total reward: -5759783.399999973 - Buy first 12 (No selling)
+Total reward: -5306972.419999983 - Custom buy
 Total reward(22): -4865413.219999975 - Moving average (22 hours, Selling if the price is > 200)
 
 
