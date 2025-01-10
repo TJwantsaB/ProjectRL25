@@ -1,2 +1,0 @@
-Average reward after 1000 simulations: -7225032.127019966 - Epsilon = 0.010990000000000055
-Average reward after 2000 simulations: -6505772.154859985 - Epsilon = 0.01

@@ -1,6 +1,6 @@
 import numpy as np
 
-from Code.Q_learning.State import State
+from Code.Q_learning.Attempt_1.State import State
 
 
 class QAgent:
@@ -36,7 +36,7 @@ class QAgent:
         bin_lengths = [len(b) for b in self.bins]
         self.Qtable = np.zeros((*bin_lengths, len(self.action_space)))
 
-    def train(self, simulations, learning_rate, epsilon=0.05,
+    def train(self, simulations, learning_rate=0.1, epsilon=0.05,
               adaptive_epsilon=False, epsilon_start=1, epsilon_end=0.01, epsilon_decay=1000):
         np.random.seed(0)
 
@@ -49,7 +49,7 @@ class QAgent:
             total_rewards = 0
             obs = self.reset_env()
             state = State(obs[0], obs[1], obs[2], obs[3])
-            self.digitize(state)
+            state.digitize(self.bins)
             if adaptive_epsilon:
                 epsilon = np.interp(i, [0, epsilon_decay], [epsilon_start, epsilon_end])
 
@@ -62,14 +62,14 @@ class QAgent:
 
                 obs_next_state, reward, done = self.env.step(self.action_space[action_index])
                 next_state = State(obs_next_state[0], obs_next_state[1], obs_next_state[2], obs_next_state[3])
-                self.digitize(next_state)
+                next_state.digitize(self.bins)
 
                 Q_target = (reward + self.discount_rate *
                             np.max(self.Qtable[next_state.digitized_state[0], next_state.digitized_state[1],
                                    next_state.digitized_state[2], next_state.digitized_state[3], :]))
 
-                delta = learning_rate * (reward + Q_target - self.Qtable[state.digitized_state[0], state.digitized_state[1],
-                                                                        state.digitized_state[2], state.digitized_state[3], action_index])
+                delta = learning_rate * (Q_target - self.Qtable[state.digitized_state[0], state.digitized_state[1],
+                                                                state.digitized_state[2], state.digitized_state[3], action_index])
                 self.Qtable[state.digitized_state[0], state.digitized_state[1],
                             state.digitized_state[2], state.digitized_state[3], action_index] += delta
 

@@ -20,6 +20,8 @@ def run_baseline(env, number_of_hours, use_fixed_thresholds=False, threshold_1=2
         else:
             if len(prices) > 0 and state[1] < np.mean(prices) and state[0] < 170:
                 action = 1
+            elif state[1] > 200:
+                action = -1
             else:
                 action = 0
 
@@ -36,7 +38,6 @@ def run_baseline(env, number_of_hours, use_fixed_thresholds=False, threshold_1=2
 
     print(f"Total reward({number_of_hours}):", aggregate_reward)
 
-data = pd.read_excel("../../Dataset/train.xlsx", nrows=11)
 for number_of_hours in range(10, 100):
-    environment = DataCenterEnv(test_data=data)
+    environment = DataCenterEnv("../../Dataset/train.xlsx")
     run_baseline(environment, number_of_hours)

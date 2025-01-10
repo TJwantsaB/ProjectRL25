@@ -16,5 +16,13 @@ class State:
         ]
 
         self.digitized_state = []
-        for bins, value in bins_and_values:
-            self.digitized_state.append(next(i for i, b in enumerate(bins) if value <= b))
+        for bin_list, value in bins_and_values:
+            r, l = 0, len(bin_list) - 1
+            while r <= l:
+                mid = (r + l) // 2
+                if value <= bin_list[mid]:
+                    index = mid
+                    l = mid - 1
+                else:
+                    r = mid + 1
+            self.digitized_state.append(index)

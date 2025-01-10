@@ -1,0 +1,56 @@
+Average reward after 1000 simulations: -7004795.405759981 - Epsilon = 0.010990000000000055
+Average reward after 2000 simulations: -6180948.929359978 - Epsilon = 0.01
+Average reward after 3000 simulations: -6015063.037919974 - Epsilon = 0.01
+Average reward after 4000 simulations: -5917245.5425799675 - Epsilon = 0.01
+Average reward after 5000 simulations: -5829430.644479978 - Epsilon = 0.01
+Average reward after 6000 simulations: -5717448.465219982 - Epsilon = 0.01
+Average reward after 7000 simulations: -5624749.447279976 - Epsilon = 0.01
+Average reward after 8000 simulations: -5525629.127459973 - Epsilon = 0.01
+Average reward after 9000 simulations: -5437061.252979978 - Epsilon = 0.01
+Average reward after 10000 simulations: -5328218.4199799765 - Epsilon = 0.01
+Average reward after 11000 simulations: -5182027.165359967 - Epsilon = 0.01
+Average reward after 12000 simulations: -5045634.531359977 - Epsilon = 0.01
+Average reward after 13000 simulations: -4914723.429119981 - Epsilon = 0.01
+Average reward after 14000 simulations: -4808635.042379977 - Epsilon = 0.01
+Average reward after 15000 simulations: -4742173.464159968 - Epsilon = 0.01
+Average reward after 16000 simulations: -4701045.386819972 - Epsilon = 0.01
+Average reward after 17000 simulations: -4675119.093379972 - Epsilon = 0.01
+Average reward after 18000 simulations: -4667435.580399968 - Epsilon = 0.01
+Average reward after 19000 simulations: -4657847.6617399715 - Epsilon = 0.01
+Average reward after 20000 simulations: -4659183.343619967 - Epsilon = 0.01
+Average reward after 21000 simulations: -4659048.95601997 - Epsilon = 0.01
+Average reward after 22000 simulations: -4659960.880819968 - Epsilon = 0.01
+Average reward after 23000 simulations: -4665852.926639959 - Epsilon = 0.01
+Average reward after 24000 simulations: -4662909.932619978 - Epsilon = 0.01
+Average reward after 25000 simulations: -4668085.95197998 - Epsilon = 0.01
+Average reward after 26000 simulations: -4670345.845279967 - Epsilon = 0.01
+Average reward after 27000 simulations: -4678303.590199978 - Epsilon = 0.01
+Average reward after 28000 simulations: -4668987.688479964 - Epsilon = 0.01
+Average reward after 29000 simulations: -4663041.484499967 - Epsilon = 0.01
+Average reward after 30000 simulations: -4667702.222779972 - Epsilon = 0.01
+Average reward after 31000 simulations: -4671632.515019978 - Epsilon = 0.01
+Average reward after 32000 simulations: -4671254.472499975 - Epsilon = 0.01
+Average reward after 33000 simulations: -4665657.083679979 - Epsilon = 0.01
+Average reward after 34000 simulations: -4663621.266399975 - Epsilon = 0.01
+Average reward after 35000 simulations: -4667907.533619965 - Epsilon = 0.01
+Average reward after 36000 simulations: -4674809.628139968 - Epsilon = 0.01
+Average reward after 37000 simulations: -4679269.16463997 - Epsilon = 0.01
+Average reward after 38000 simulations: -4679932.745099966 - Epsilon = 0.01
+Average reward after 39000 simulations: -4682216.787139972 - Epsilon = 0.01
+Average reward after 40000 simulations: -4684643.558079965 - Epsilon = 0.01
+Average reward after 41000 simulations: -4687693.296199964 - Epsilon = 0.01
+Average reward after 42000 simulations: -4683531.330919971 - Epsilon = 0.01
+Average reward after 43000 simulations: -4679492.617979969 - Epsilon = 0.01
+Average reward after 44000 simulations: -4695376.373319968 - Epsilon = 0.01
+Average reward after 45000 simulations: -4686434.203819975 - Epsilon = 0.01
+Average reward after 46000 simulations: -4695495.802879975 - Epsilon = 0.01
+Average reward after 47000 simulations: -4696734.73107997 - Epsilon = 0.01
+Average reward after 48000 simulations: -4694625.739979969 - Epsilon = 0.01
+Average reward after 49000 simulations: -4689082.55807997 - Epsilon = 0.01
+Average reward after 50000 simulations: -4693145.67529997 - Epsilon = 0.01
+
+The simulation is done!
+FINAL - Total reward: -4474336.91999998
+
+-------------------------------------------------------------
+I think the difference is mainly due to dropping the Epsilon from 0.01 to 0.

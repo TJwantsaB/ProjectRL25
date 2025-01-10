@@ -1,13 +1,19 @@
+import numpy as np
+
 from Base.env import DataCenterEnv
-from Code.Q_learning.Attempt_1.QAgent import QAgent
-from Code.Q_learning.Attempt_1.State import State
+from Code.Q_learning.Attempt_3.QAgent import QAgent
+from Code.Q_learning.Attempt_3.State import State
 
 
-env = DataCenterEnv("../../Dataset/train.xlsx", nr_of_days=1096)
+env = DataCenterEnv("../../Dataset/train.xlsx")
+
 
 simulations = 50000
 q_agent = QAgent(env)
-q_agent.train(simulations, adaptive_epsilon=True)
+q_agent.train(simulations, adaptive_epsilon=True, adaptive_learning_rate=True)
+
+np.save('./Attempt_3/Q_table.npy', q_agent.Qtable)
+#q_agent.Qtable = np.load('./Attempt_3/Q_table.npy')
 
 
 aggregate_reward = 0
