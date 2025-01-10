@@ -51,17 +51,17 @@ class QAgentDataCenter:
         self.epsilon_min = epsilon_min
         self.epsilon_decay = epsilon_decay
         
-        self.bins_storage = [10 * x for x in range(1, 17)]  # 10, 20, ..., 160
-        self.bins_storage.append(999999)                    # catch-all bin
+        self.bins_storage = [10 * x for x in range(1, 17)]
+        self.bins_storage.append(999999)
 
-        self.bins_price = [5 * x for x in range(1, 41)]     # 5, 10, 15, ... 200
+        self.bins_price = [5 * x for x in range(1, 41)] 
         self.bins_price.append(999999)
 
-        self.bins_hour = [x for x in range(1, 24)]          # 1..23
-        self.bins_hour.append(999999)                       # hours can be up to 24
+        self.bins_hour = [x for x in range(1, 24)]
+        self.bins_hour.append(999999)                       
 
         # day: if you have up to e.g. 365 days, or 3 years = 1095 days, define appropriately:
-        self.bins_day = [x for x in range(1, 400)]          # say up to day=399
+        self.bins_day = [x for x in range(1, 400)]
         self.bins_day.append(999999)
 
         self.action_space = [-1, 0, 1]
