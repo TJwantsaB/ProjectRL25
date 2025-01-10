@@ -54,14 +54,17 @@ class QAgentDataCenter:
         self.bins_storage = [10 * x for x in range(1, 17)]
         self.bins_storage.append(999999)
 
-        self.bins_price = [5 * x for x in range(1, 41)] 
-        self.bins_price.append(999999)
+        # self.bins_price = [5 * x for x in range(1, 41)] 
+        # self.bins_price.append(999999)
+        self.bins_price = self._calculate_price_quantiles(self.env.price_values, 40)
+        # print(self.bins_price)
+        # quit()
 
         self.bins_hour = [x for x in range(1, 24)]
         self.bins_hour.append(999999)                       
 
         # day: if you have up to e.g. 365 days, or 3 years = 1095 days, define appropriately:
-        self.bins_day = [x for x in range(1, 400)]
+        self.bins_day = [x for x in range(1, 366)]
         self.bins_day.append(999999)
 
         self.action_space = [-1, 0, 1]
@@ -73,6 +76,20 @@ class QAgentDataCenter:
                  len(self.bins_day),
                  len(self.action_space))
         self.Q_table = np.zeros(shape, dtype=float)
+
+    def _calculate_price_quantiles(self, price_values, num_bins):
+        """
+        Calculate quantile-based bin edges for prices, focusing only on the middle percentiles.
+        This method ensures that price bins are based on data distribution.
+        """
+        price_values_flat = sorted(price_values.flatten().tolist())
+        
+        # Compute quantiles for the given number of bins
+        quantile_edges = [
+            price_values_flat[int(len(price_values_flat) * q)]
+            for q in np.linspace(0, 1, num_bins + 1)[1:-1]  # Skip 0% and 100%
+        ]
+        return quantile_edges
 
     def _manual_env_reset(self):
         """
