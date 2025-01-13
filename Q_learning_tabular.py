@@ -7,16 +7,16 @@ class QAgentDataCenter:
     def __init__(
         self,
         environment,
-        discount_rate=0.95,
-        bin_size_storage=5,   # A bit bigger than 5
-        bin_size_price=5,     # A bit bigger than 5
-        bin_size_hour=12,      # One bin per hour is convenient
-        bin_size_day=7,        # Mod 7 or so, TODO: Do we want to add month?
-        episodes=2000,
+        discount_rate=0.99,
+        bin_size_storage=1,   # A bit bigger than 5
+        bin_size_price=1,     # A bit bigger than 5
+        bin_size_hour=24,      # One bin per hour is convenient
+        bin_size_day=1,        # Mod 7 or so, TODO: Do we want to add month?
+        episodes=100,
         learning_rate=0.1,
         epsilon=1.0,
         epsilon_min=0.05,
-        epsilon_decay=0.999
+        epsilon_decay=0.9
     ):
         """
         Q-learning agent for the DataCenterEnv.
@@ -68,7 +68,7 @@ class QAgentDataCenter:
         )
 
         # Discretize the action space. We'll have 5 possible actions in [-1, -0.5, 0, 0.5, 1].
-        self.discrete_actions = np.linspace(-1.0, 1.0, num=5)
+        self.discrete_actions = [0,1]
         self.action_size = len(self.discrete_actions)
 
         # Create Q-table: shape = [storage_bins, price_bins, hour_bins, day_bins, action_size]
@@ -168,9 +168,15 @@ class QAgentDataCenter:
                 action_idx = self.epsilon_greedy_action(state_disc)
                 chosen_action = self.discrete_actions[action_idx]
 
+                if state[0] == 120:
+                    chosen_action = 0
+
                 # Step environment
                 next_state, reward, terminated = self.env.step(chosen_action)
 
+                reward1 = 0
+                if reward != 0:
+                    reward1 =  1000 - reward
                 # Discretize next state
                 next_state_disc = self.discretize_state(next_state)
 
@@ -190,7 +196,7 @@ class QAgentDataCenter:
                         next_state_disc[3]
                     ]
                 )
-                td_target = reward + self.discount_rate * next_max
+                td_target = reward1 + self.discount_rate * next_max
                 new_value = old_value + self.learning_rate * (td_target - old_value)
                 self.Q_table[
                     state_disc[0],
@@ -217,6 +223,8 @@ class QAgentDataCenter:
                     f"Avg reward (last 50): {avg_reward:.2f}, "
                     f"Epsilon: {self.epsilon:.3f}"
                 )
+
+            print(total_reward)
 
         print("Training finished!")
 
@@ -254,7 +262,7 @@ if __name__ == "__main__":
         discount_rate=0.95,
         epsilon=1.0,
         epsilon_min=0.05,
-        epsilon_decay=0.995   # so we see faster decay for demo
+        epsilon_decay=0.95  # so we see faster decay for demo
     )
 
     # Train
