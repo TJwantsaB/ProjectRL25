@@ -24,6 +24,34 @@ df['PRICES'] = pd.to_datetime(df['PRICES'])
 df.set_index('PRICES', inplace=True)
 df.columns = [col.replace('Hour ', '') if 'Hour' in col else col for col in df.columns]
 
+
+import matplotlib.pyplot as plt
+
+# Add a column for the day of the week
+df['Day_of_Week'] = df['PRICES'].dt.day_name()
+
+# Calculate the average price for each day of the week
+average_prices_per_day = df.groupby('Day_of_Week')['Price'].mean()
+
+# Reorder the days of the week for a proper display
+ordered_days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+average_prices_per_day = average_prices_per_day.reindex(ordered_days)
+
+# Plot the average prices per day
+plt.figure(figsize=(10, 6))
+plt.plot(average_prices_per_day.index, average_prices_per_day.values, marker='o', linestyle='-', color='blue', label='Day-of-Week Average')
+plt.title('Average Prices by Day of the Week')
+plt.xlabel('Day of Week')
+plt.ylabel('Average Price')
+plt.grid(True)
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+# Print the average prices for each day
+print("Average Prices by Day of the Week:")
+print(average_prices_per_day)
+
 hourly_flat = df.iloc[:, 1:].values.flatten()
 
 # Create a plot with a logarithmic scale
