@@ -11,12 +11,16 @@ class DataCenterEnv(gym.Env):
         self.test_data = pd.read_excel(path_to_test_data)
         self.price_values = self.test_data.iloc[:, 1:25].to_numpy()
         self.timestamps = self.test_data['PRICES']
+        self.start_date = self.test_data['PRICES'].iloc[0]
+        self.start_date_day = self.start_date.day_name()
+
 
         self.daily_energy_demand = 120  # MWh
         self.max_power_rate = 10  # MW
         self.storage_level = 0
         self.hour = 1
         self.day = 1
+        # self.start_date = self.test_data['DATE'][0]
 
     def step(self, action):
         """
@@ -105,3 +109,9 @@ class DataCenterEnv(gym.Env):
         price = self.price_values[self.day - 1][self.hour - 1]
         self.state = np.array([self.storage_level, price, self.hour, self.day])
         return self.state
+
+    def reset(self):
+        self.hour = 1
+        self.day = 1
+        self.storage_level = 0
+        return self.observation()
