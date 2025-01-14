@@ -7,23 +7,20 @@ class QAgentDataCenter:
     def __init__(
         self,
         environment,
-        discount_rate=0.99,
-        bin_size_storage=1,   # A bit bigger than 5
-        bin_size_price=1,     # A bit bigger than 5
-        bin_size_hour=24,      # One bin per hour is convenient
-        bin_size_day=1,        # Mod 7 or so, TODO: Do we want to add month?
+        discount_rate=0.9999,
+        bin_size_storage=1,
+        bin_size_price=1,
+        bin_size_hour=12,
+        bin_size_day=1,
         episodes=100,
         learning_rate=0.1,
         epsilon=1.0,
         epsilon_min=0.05,
-        epsilon_decay=0.9
+        epsilon_decay=0.95,
+        adaptive_lr_factor=0.1,  # Factor for adaptive learning rate
+        adaptive_epsilon_factor=0.1  # Factor for adaptive epsilon decay
     ):
-        """
-        Q-learning agent for the DataCenterEnv.
-
-        The biggest fix we need is to ensure we properly reset the environment
-        each episode, because the environment doesn't have a built-in reset() method.
-        """
+        # Initialization as before
         self.env = environment
         self.discount_rate = discount_rate
         self.bin_size_storage = bin_size_storage
@@ -33,9 +30,12 @@ class QAgentDataCenter:
 
         self.episodes = episodes
         self.learning_rate = learning_rate
+        self.initial_learning_rate = learning_rate
         self.epsilon = epsilon
         self.epsilon_min = epsilon_min
         self.epsilon_decay = epsilon_decay
+        self.adaptive_lr_factor = adaptive_lr_factor
+        self.adaptive_epsilon_factor = adaptive_epsilon_factor
 
         # Define ranges for discretization.
         # You can tune these if you have reason to believe the datacenter might
@@ -68,7 +68,7 @@ class QAgentDataCenter:
         )
 
         # Discretize the action space. We'll have 5 possible actions in [-1, -0.5, 0, 0.5, 1].
-        self.discrete_actions = [0,1]
+        self.discrete_actions = np.linspace(-1, 1, 3)
         self.action_size = len(self.discrete_actions)
 
         # Create Q-table: shape = [storage_bins, price_bins, hour_bins, day_bins, action_size]
@@ -140,44 +140,34 @@ class QAgentDataCenter:
         return self.env.observation()
 
     def train(self):
-        """
-        Train the agent over a number of episodes.
-        """
         for episode in range(self.episodes):
             print(f"Episode {episode + 1}")
-
-            # Manually reset environment at start of each episode
             state = self._manual_env_reset()
             terminated = False
 
             total_reward = 0.0
 
             while not terminated:
-                # If day >= len(price_values), environment says it's out of data
-                # but let's break gracefully if that happens for the *current* episode.
-                # We'll then do a fresh reset next episode.
                 if self.env.day >= len(self.env.price_values):
-                    # This is where the environment is done for the data set
                     terminated = True
                     break
 
-                # Discretize state
                 state_disc = self.discretize_state(state)
-
-                # Epsilon-greedy action
                 action_idx = self.epsilon_greedy_action(state_disc)
                 chosen_action = self.discrete_actions[action_idx]
 
-                if state[0] == 120:
+                if chosen_action < 0 and state[0] <= 120:
                     chosen_action = 0
 
                 # Step environment
                 next_state, reward, terminated = self.env.step(chosen_action)
 
-                reward1 = 0
-                if reward != 0:
-                    reward1 =  1000 - reward
-                # Discretize next state
+                def storage_factor_modified(storage_level, mid=85.0, alpha=0.03):
+                    return np.tanh(alpha * (storage_level - mid))
+
+                factor = storage_factor_modified(state[0])
+                shaped_reward = reward * factor
+
                 next_state_disc = self.discretize_state(next_state)
 
                 # Q-learning update
@@ -196,7 +186,7 @@ class QAgentDataCenter:
                         next_state_disc[3]
                     ]
                 )
-                td_target = reward1 + self.discount_rate * next_max
+                td_target = shaped_reward + self.discount_rate * next_max
                 new_value = old_value + self.learning_rate * (td_target - old_value)
                 self.Q_table[
                     state_disc[0],
@@ -209,19 +199,28 @@ class QAgentDataCenter:
                 total_reward += reward
                 state = next_state
 
-            # Decay epsilon after each full episode
+            # Adaptive learning rate adjustment
+            self.learning_rate = max(
+                self.adaptive_lr_factor * (1 / (1 + total_reward)),
+                0.01
+            )
+
+            # Adaptive epsilon decay
             if self.epsilon > self.epsilon_min:
-                self.epsilon *= self.epsilon_decay
+                self.epsilon *= max(
+                    self.adaptive_epsilon_factor * (1 / (1 + total_reward)),
+                    self.epsilon_min
+                )
 
             self.episode_rewards.append(total_reward)
-            # Print average every 50 episodes
             if (episode + 1) % 50 == 0:
                 avg_reward = np.mean(self.episode_rewards[-50:])
                 self.average_rewards.append(avg_reward)
                 print(
                     f"Episode {episode + 1}, "
                     f"Avg reward (last 50): {avg_reward:.2f}, "
-                    f"Epsilon: {self.epsilon:.3f}"
+                    f"Epsilon: {self.epsilon:.3f}, "
+                    f"Learning Rate: {self.learning_rate:.3f}"
                 )
 
             print(total_reward)
