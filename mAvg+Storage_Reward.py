@@ -2,21 +2,25 @@ import numpy as np
 import random
 import gym
 from env import DataCenterEnv  # Make sure this import points to your env.py file
+from matplotlib import pyplot as plt
+from collections import deque
 
 class QAgentDataCenter:
     def __init__(
         self,
         environment,
-        discount_rate=0.95,
-        bin_size_storage=5,   # A bit bigger than 5
-        bin_size_price=5,     # A bit bigger than 5
-        bin_size_hour=12,      # One bin per hour is convenient
-        bin_size_day=7,        # Mod 7 or so, TODO: Do we want to add month?
-        episodes=2000,
+        discount_rate=0.99,
+        bin_size_storage=12,   # A bit bigger than 5
+        bin_size_price=1,     # A bit bigger than 5
+        bin_size_hour=24,      # One bin per hour is convenient
+        bin_size_day=1,
+        episodes=100,
         learning_rate=0.1,
         epsilon=1.0,
         epsilon_min=0.05,
-        epsilon_decay=0.999
+        epsilon_decay=0.9,
+        rolling_window_size=72,
+        storage_factor=1
     ):
         """
         Q-learning agent for the DataCenterEnv.
@@ -37,11 +41,14 @@ class QAgentDataCenter:
         self.epsilon_min = epsilon_min
         self.epsilon_decay = epsilon_decay
 
+        self.price_history = deque(maxlen=rolling_window_size)
+
         # Define ranges for discretization.
         # You can tune these if you have reason to believe the datacenter might
         # store more or less than 170 MWh, or see higher/lower prices, etc.
         self.storage_min = 0.0
-        self.storage_max = 170.0
+        self.storage_max = 120
+        self.storage_factor = storage_factor
         self.price_min = 0.01
         self.price_max = 2500.0
         # Hour range is integer 1..24. We'll create 24 bins so each hour is its own bin.
@@ -49,7 +56,7 @@ class QAgentDataCenter:
         self.hour_max = 24
         # Day range. We can do day modulo 7 or something. We'll do that in `discretize_state`.
         self.day_min = 1
-        self.day_max = 365
+        self.day_max = 7
 
         # Create bin edges.
         self.bin_storage_edges = np.linspace(
@@ -68,18 +75,18 @@ class QAgentDataCenter:
         )
 
         # Discretize the action space. We'll have 5 possible actions in [-1, -0.5, 0, 0.5, 1].
-        self.discrete_actions = np.linspace(-1.0, 1.0, num=5)
+        self.discrete_actions = [-1,0,1]
         self.action_size = len(self.discrete_actions)
 
         # Create Q-table: shape = [storage_bins, price_bins, hour_bins, day_bins, action_size]
-        self.Q_table = np.zeros(
+        self.Q_table = np.full(
             (
                 self.bin_size_storage,
                 self.bin_size_price,
                 self.bin_size_hour,
                 self.bin_size_day,
                 self.action_size
-            )
+            ),0.001
         )
 
         # For logging
@@ -114,11 +121,18 @@ class QAgentDataCenter:
         """
         Pick an action index using epsilon-greedy policy.
         """
+
+        ################################################################
+        #  Pick action proportionate to ideally required distribution  #
+        ################################################################
+
         if random.uniform(0, 1) < self.epsilon:
-            # Explore
-            return np.random.randint(0, self.action_size)
+            # Explore with weighted probabilities
+            probabilities = [0.2, 0.2, 0.6]  # 10% sell, 20% nothing, 70% buy
+            actions = [0, 1, 2]  # 0 -> sell, 1 -> do nothing, 2 -> buy
+            return np.random.choice(actions, p=probabilities)
+
         else:
-            # Exploit
             return np.argmax(
                 self.Q_table[
                     state_disc[0],
@@ -127,6 +141,13 @@ class QAgentDataCenter:
                     state_disc[3]
                 ]
             )
+
+    # Determine whether agent is forced to buy
+    def force_buy(self, state_disc):
+        hours_left = 24 - state_disc[2]
+        shortfall = 120 - (state_disc[0]+1 * 10)
+        max_possibly_buy = hours_left * 10
+        return shortfall > max_possibly_buy
 
     def _manual_env_reset(self):
         """
@@ -161,6 +182,15 @@ class QAgentDataCenter:
                     terminated = True
                     break
 
+                #################################################
+                #  Let agent explore states with higher energy  #
+                #################################################
+
+                if random.uniform(0, 1) < self.epsilon:
+                    if state[2] == 0:
+                        state[0] = 50
+
+
                 # Discretize state
                 state_disc = self.discretize_state(state)
 
@@ -170,6 +200,28 @@ class QAgentDataCenter:
 
                 # Step environment
                 next_state, reward, terminated = self.env.step(chosen_action)
+
+                ########################################################################
+                #  Keep track of rolling average of prices and reward proportionately  #
+                #  Allows agent to get positive reward for buying at low prices        #
+                ########################################################################
+
+                # Compute reward relative to moving average
+                def rolling_reward(chosen_action, reward, rolling_avg_price):
+                    return rolling_avg_price * 10 * chosen_action + reward
+
+                current_price = state[1]
+                self.price_history.append(current_price)
+                rolling_avg_price = np.mean(self.price_history)
+
+                shaped_reward =  rolling_reward(chosen_action, reward, rolling_avg_price)
+
+                #####################################
+                #  Reward agent for storing energy  #
+                #####################################
+
+                energy_proportional_reward = next_state[0] * self.storage_factor
+                shaped_reward += energy_proportional_reward
 
                 # Discretize next state
                 next_state_disc = self.discretize_state(next_state)
@@ -182,15 +234,33 @@ class QAgentDataCenter:
                     state_disc[3],
                     action_idx
                 ]
-                next_max = np.max(
-                    self.Q_table[
+
+                #########################################################
+                #  Check whether agent if forced to buy, if so:         #
+                #  Q_value for update should be that of buy (action 2)  #
+                #########################################################
+
+                if self.force_buy(state_disc):
+                    next_max = self.Q_table[
                         next_state_disc[0],
                         next_state_disc[1],
                         next_state_disc[2],
-                        next_state_disc[3]
+                        next_state_disc[3],
+                        2
                     ]
-                )
-                td_target = reward + self.discount_rate * next_max
+
+                else:
+                    next_max = np.max(
+                        self.Q_table[
+                            next_state_disc[0],
+                            next_state_disc[1],
+                            next_state_disc[2],
+                            next_state_disc[3]
+                        ]
+                    )
+
+                td_target = shaped_reward + self.discount_rate * next_max
+
                 new_value = old_value + self.learning_rate * (td_target - old_value)
                 self.Q_table[
                     state_disc[0],
@@ -218,6 +288,8 @@ class QAgentDataCenter:
                     f"Epsilon: {self.epsilon:.3f}"
                 )
 
+            print(total_reward)
+
         print("Training finished!")
 
     def act(self, state):
@@ -240,7 +312,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--path', type=str, default='train.xlsx')
+    parser.add_argument('--path', type=str, default='train_clipped_quantiles.xlsx')
     args = parser.parse_args()
 
     # Create environment
@@ -254,7 +326,9 @@ if __name__ == "__main__":
         discount_rate=0.95,
         epsilon=1.0,
         epsilon_min=0.05,
-        epsilon_decay=0.995   # so we see faster decay for demo
+        epsilon_decay=0.95,  # so we see faster decay for demo
+        rolling_window_size=72
+
     )
 
     # Train
