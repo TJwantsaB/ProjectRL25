@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 
 from Base.env import DataCenterEnv
 
@@ -39,5 +38,5 @@ def run_baseline(env, number_of_hours, use_fixed_thresholds=False, threshold_1=2
     print(f"Total reward({number_of_hours}):", aggregate_reward)
 
 for number_of_hours in range(10, 100):
-    environment = DataCenterEnv("../../Dataset/train.xlsx")
+    environment = DataCenterEnv("../../Dataset/train.xlsx", nr_of_days=1096)
     run_baseline(environment, number_of_hours)
