@@ -1,0 +1,4 @@
+Random                                                       -> Total reward: -7420459.152817432
+Buy first 12 (No selling)                                    -> Total reward: -5759783.399999973
+Custom buy                                                   -> Total reward: -5114711.7999999765
+Moving average (20 hours, Selling if the price is > 200)     -> Total reward: -4865413.219999975

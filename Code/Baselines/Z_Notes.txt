@@ -11,17 +11,3 @@ It should however never fall below 0 MWh and reach at least 120MWh of positive e
 Selling electricity to the grid only provides 80% compensation of the grid price due to the electricity losses and financial
 agreements with the grid.
 -----------------------------------------------------------------------------------------------------------------------------------------
-
-    On train set:
-
-Total reward: -7393363.77196744 - Random
-Total reward: -5759783.399999973 - Buy first 12 (No selling)
-Total reward: -5306972.419999983 - Custom buy
-Total reward(22): -4865413.219999975 - Moving average (22 hours, Selling if the price is > 200)
-
-
-    On validation set:
-
-Total reward(22): -3415481.799999994 - Moving average (22 hours, no sell)
-
-

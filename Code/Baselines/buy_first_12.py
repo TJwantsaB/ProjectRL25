@@ -1,6 +1,6 @@
 from Base.env import DataCenterEnv
 
-environment = DataCenterEnv("../../Dataset/train.xlsx")
+environment = DataCenterEnv("../../Dataset/train.xlsx", nr_of_days=1096)
 
 aggregate_reward = 0
 terminated = False
@@ -14,8 +14,8 @@ while not terminated:
     next_state, reward, terminated = environment.step(action)
     state = next_state
     aggregate_reward += reward
-    print("Action:", action)
-    print("Next state:", next_state)
-    print("Reward:", reward)
+    #print("Action:", action)
+    #print("Next state:", next_state)
+    #print("Reward:", reward)
 
 print('Total reward:', aggregate_reward)

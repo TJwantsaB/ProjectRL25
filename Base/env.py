@@ -8,7 +8,7 @@ class DataCenterEnv(gym.Env):
     def __init__(self, path_to_test_data=None, nr_of_days=1096):
         super(DataCenterEnv, self).__init__()
         self.continuous_action_space = spaces.Box(low=-1, high=1, shape=(1,), dtype=np.float32)
-        self.test_data = pd.read_excel(path_to_test_data, nrows=nr_of_days + 1) # !
+        self.test_data = pd.read_excel(path_to_test_data, nrows=nr_of_days + 1) # !!!
         self.price_values = self.test_data.iloc[:, 1:25].to_numpy()
         self.timestamps = self.test_data['PRICES']
 
@@ -26,7 +26,7 @@ class DataCenterEnv(gym.Env):
         4. If hour=25, end the day, carry up to +50 above daily demand.
         """
         # Number of hours left in the day (including this one)
-        hours_left = 24 - self.hour
+        hours_left = 24 - self.hour # !!! + 1
 
         # Current shortfall
         shortfall = self.daily_energy_demand - self.storage_level
