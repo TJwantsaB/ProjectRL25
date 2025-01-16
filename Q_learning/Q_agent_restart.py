@@ -1,23 +1,3 @@
-"""
-Below is an example of a **tabular Q-learning** agent that:
-1) Uses only the HOUR of the day (1..24) as the state dimension (no storage level, price, etc.).
-2) Has actions {-1, 0, +1} (sell, do nothing, buy).
-3) Can train on only the first N days of the dataset, if desired.
-4) Saves training statistics (episode, total_reward, epsilon) to a CSV file.
-5) Includes a function to run inference (greedy policy) on a separate “validation” dataset.
-
-IMPORTANT NOTES:
-- Because we’re only using 'hour' as the state, the Q-table will be shape [24 x 3].
-  (24 states for hours, 3 discrete actions).
-- The environment does still track day, storage, etc. But from the agent’s perspective,
-  the “state” is just hour-1. This is presumably for demonstration.
-- We let the environment do “forced buy” logic or “forced sell disallow,”
-  but the agent only knows the current hour and chooses an action in {-1,0,1}.
-- We forcibly end each episode if env.day > max_days (if max_days is not None).
-- For validation, we create a second environment from a “validation” Excel file,
-  then run the learned Q-table greedily (no training) to see the total reward.
-"""
-
 import numpy as np
 import random
 import csv
@@ -69,8 +49,8 @@ class QAgentHourOnly:
         self.num_states = 24
 
         # Actions: -1, 0, 1 => we store them in an array for indexing
-        # self.actions = [-1, 0, 1]  # len=3
-        self.actions = [0, 1]
+        self.actions = [-1, 0, 1]  # len=3
+        # self.actions = [0, 1]
         self.num_actions = len(self.actions)
 
         # Create Q-table: shape [24 x 3]
