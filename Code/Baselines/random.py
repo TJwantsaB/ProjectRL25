@@ -4,8 +4,7 @@ import pandas as pd
 from Base.env import DataCenterEnv
 
 
-data = pd.read_excel("../../Dataset/train.xlsx", nrows=11)
-environment = DataCenterEnv(test_data=data)
+environment = DataCenterEnv("../../Dataset/train.xlsx", nr_of_days=1096)
 
 aggregate_reward = 0
 terminated = False
