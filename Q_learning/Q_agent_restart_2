@@ -47,10 +47,10 @@ class QAgentHourOnly:
         self.num_states = 24
 
         # In the older code, we used 2 actions: [0,1], i.e. do nothing or buy.
-        self.actions = [0, 1]  # len=2
+        # self.actions = [0, 1]  # len=2
+        self.actions = [-1, 0, 1]  # len=2
         self.num_actions = len(self.actions)
 
-        # Create Q-table shape: [24 states x 2 actions]
         self.Q_table = np.zeros((self.num_states, self.num_actions), dtype=float)
 
     def _manual_env_reset(self):
@@ -112,18 +112,14 @@ class QAgentHourOnly:
                     # Epsilon-greedy
                     action_idx = self.epsilon_greedy_action(state_idx)
 
-                    # Force action=0 if storage==120
-                    if obs[0] == 120:
-                        action_idx = 0  # do nothing
-
                     action_value = self.actions[action_idx]  # in {0=do nothing, 1=buy}
 
                     # Step environment
                     next_obs, raw_reward, terminated_env = self.env.step(action_value)
 
                     # Reward shaping
-                    if raw_reward != 0:
-                        shaped_reward = 1000.0 - raw_reward
+                    if raw_reward > 0:
+                        shaped_reward = raw_reward -400
                     else:
                         shaped_reward = 0.0
 
@@ -225,7 +221,7 @@ def main():
                         help="Only train on the first N days of the dataset.")
     parser.add_argument('--val_days', type=int, default=None,
                         help="If validating, only run for the first N days on the validation dataset.")
-    parser.add_argument('--discount_rate', type=float, default=0.99,
+    parser.add_argument('--discount_rate', type=float, default=0.8,
                         help="Gamma for Q-learning. Older code used 0.99.")
     parser.add_argument('--epsilon_decay', type=float, default=0.95,
                         help="Epsilon decay. Older code used 0.95.")
