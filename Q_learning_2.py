@@ -55,8 +55,8 @@ class QAgentDataCenter:
         self.bins_storage.append(999999)
 
         # self.bins_price = [5 * x for x in range(1, 41)] 
+        # self.bins_price.append(999999)
         self.bins_price = self._calculate_price_quantiles(self.env.price_values, 40)
-        self.bins_price.append(999999)
         # print(self.bins_price)
         # quit()
 
@@ -194,7 +194,7 @@ if __name__ == "__main__":
         environment=env,
         discount_rate=0.99,
         learning_rate=0.1,
-        episodes=50000,    # Increase for better chance of learning
+        episodes=10000,    # Increase for better chance of learning
         epsilon=1.0,
         epsilon_min=0.05,
         epsilon_decay=0.999
@@ -210,11 +210,6 @@ if __name__ == "__main__":
     obs = env.observation()
     total_greedy_reward = 0.0
     terminated = False
-
-        # Save the Q-table
-    np.save("Q_table.npy", agent.Q_table)
-    print("Q-table saved as 'Q_table.npy'.")
-
 
     while not terminated:
         if env.day >= len(env.price_values):
