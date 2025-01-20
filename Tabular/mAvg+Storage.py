@@ -10,7 +10,7 @@ class QAgentDataCenter:
         self,
         environment,
         discount_rate=0.99,
-        bin_size_storage=13,   # A bit bigger than 5
+        bin_size_storage=15,   # A bit bigger than 5
         bin_size_price=1,     # A bit bigger than 5
         bin_size_hour=24,      # One bin per hour is convenient
         bin_size_day=1,
@@ -47,7 +47,7 @@ class QAgentDataCenter:
         # You can tune these if you have reason to believe the datacenter might
         # store more or less than 170 MWh, or see higher/lower prices, etc.
         self.storage_min = 0.0
-        self.storage_max = 120
+        self.storage_max = 150
         self.storage_factor = storage_factor
         self.price_min = 0.01
         self.price_max = 2500.0
@@ -340,18 +340,15 @@ if __name__ == "__main__":
         epsilon_min=0.05,
         epsilon_decay=0.67,  # so we see faster decay for demo
         rolling_window_size=27
-
     )
 
     # Train
-    # agent.train()
+    agent.train()
 
     # Test run with the greedy policy
     print("\nRunning a quick greedy run with the learned policy:")
 
     env = DataCenterEnv(path_to_test_data='validate.xlsx')
-
-    agent.Q_table = np.load('best_one_yet.npy')
 
     # We do a fresh manual reset for the test run:
     env.day = 1

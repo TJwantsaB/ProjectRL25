@@ -123,13 +123,24 @@ class DataCenterEnv(gym.Env):
         model = ARIMA(self.price_values_original.flatten(), order=(1, 0, 0))
         fit = model.fit()
 
-        # Generate new AR-based noise
-        ar_noise = fit.resid.reshape(self.price_values_original.shape)
+        # Extract AR(1) parameters
+        ar_param = fit.arparams[0]  # AR coefficient
+        sigma = fit.bse[0]  # Standard deviation of noise
+
+        # Generate stochastic AR-based noise
+        np.random.seed()  # Ensure different noise on every reset
+        ar_noise = np.zeros_like(self.price_values_original.flatten())
+        for i in range(1, len(ar_noise)):
+            ar_noise[i] = ar_param * ar_noise[i - 1] + np.random.normal(0, sigma)
+
+        ar_noise = ar_noise.reshape(self.price_values_original.shape)
+        print(ar_noise.min(), ar_noise.max())
 
         # Add noise to original prices
-        self.price_values = self.price_values_original + ar_noise * 0.33
+        self.price_values = self.price_values_original + ar_noise * 0.5
 
         # Ensure no prices are below 0.001
         self.price_values = np.clip(self.price_values, 0.001, None)
 
         return self.observation()
+

@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 # Load the dataset from an Excel file
-file_path = 'train.xlsx'  # Update with the correct file path
+file_path = '../train.xlsx'  # Update with the correct file path
 df = pd.read_excel(file_path, sheet_name='prices_2')  # Update sheet_name if needed
 
 # Keep the original structure for later reconstruction
