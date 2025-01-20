@@ -10,7 +10,7 @@ class QAgentDataCenter:
         self,
         environment,
         discount_rate=0.99,
-        bin_size_storage=12,   # A bit bigger than 5
+        bin_size_storage=13,   # A bit bigger than 5
         bin_size_price=1,     # A bit bigger than 5
         bin_size_hour=24,      # One bin per hour is convenient
         bin_size_day=1,
@@ -60,14 +60,16 @@ class QAgentDataCenter:
 
         # Create bin edges.
         self.bin_storage_edges = np.linspace(
-            self.storage_min, self.storage_max, self.bin_size_storage
+            self.storage_min, self.storage_max, self.bin_size_storage + 1
         )
+
         self.bin_price_edges = np.linspace(
             self.price_min, self.price_max, self.bin_size_price
         )
         self.bin_hour_edges = np.linspace(
-            self.hour_min - 0.5, self.hour_max + 0.5, self.bin_size_hour
+            self.hour_min - 0.5, self.hour_max + 0.5, self.bin_size_hour + 1
         )
+
         self.bin_day_edges = np.linspace(
             self.day_min - 0.5,
             self.day_min + self.bin_size_day - 0.5,
@@ -86,7 +88,7 @@ class QAgentDataCenter:
                 self.bin_size_hour,
                 self.bin_size_day,
                 self.action_size
-            ),0.001
+            ),100
         )
 
         # For logging
@@ -119,33 +121,36 @@ class QAgentDataCenter:
 
     def epsilon_greedy_action(self, state_disc):
         """
-        Pick an action index using epsilon-greedy policy.
+        Pick an action index using epsilon-greedy policy, ensuring 'sell' is not selected if storage is empty.
         """
+        storage_level_idx = state_disc[0]  # Storage index
 
-        ################################################################
-        #  Pick action proportionate to ideally required distribution  #
-        ################################################################
+        # If storage is empty, disallow the "sell" action
+        if storage_level_idx == 0:
+            valid_actions = [1, 2]  # Only "do nothing" and "buy"
+            valid_probs = [0.5, 0.5]  # Adjusted probabilities
+        else:
+            valid_actions = [0, 1, 2]  # All actions are valid
+            valid_probs = [0.25, 0.25, 0.5]  # Default probabilities
 
         if random.uniform(0, 1) < self.epsilon:
-            # Explore with weighted probabilities
-            probabilities = [0.2, 0.2, 0.6]  # 10% sell, 20% nothing, 70% buy
-            actions = [0, 1, 2]  # 0 -> sell, 1 -> do nothing, 2 -> buy
-            return np.random.choice(actions, p=probabilities)
-
+            # Explore: Choose an action from valid actions
+            return np.random.choice(valid_actions, p=valid_probs)
         else:
-            return np.argmax(
-                self.Q_table[
-                    state_disc[0],
-                    state_disc[1],
-                    state_disc[2],
-                    state_disc[3]
-                ]
-            )
+            # Exploit: Greedy selection only from valid actions
+            q_values = self.Q_table[
+                state_disc[0], state_disc[1], state_disc[2], state_disc[3]
+            ]
+            # Mask "sell" action if storage is empty
+            if storage_level_idx == 0:
+                q_values = np.array([float('-inf'), q_values[1], q_values[2]])
+
+            return np.argmax(q_values)
 
     # Determine whether agent is forced to buy
     def force_buy(self, state_disc):
-        hours_left = 24 - state_disc[2]
-        shortfall = 120 - (state_disc[0]+1 * 10)
+        hours_left = 24 - state_disc[2] - 1
+        shortfall = 120 - ((state_disc[0]) * 10)
         max_possibly_buy = hours_left * 10
         return shortfall > max_possibly_buy
 
@@ -168,7 +173,7 @@ class QAgentDataCenter:
             print(f"Episode {episode + 1}")
 
             # Manually reset environment at start of each episode
-            state = self._manual_env_reset()
+            state = self.env.reset()
             terminated = False
 
             total_reward = 0.0
@@ -186,16 +191,15 @@ class QAgentDataCenter:
                 #  Let agent explore states with higher energy  #
                 #################################################
 
-                if random.uniform(0, 1) < self.epsilon:
-                    if state[2] == 1:
-                        state[0] = 50
-
-
                 # Discretize state
                 state_disc = self.discretize_state(state)
 
-                # Epsilon-greedy action
-                action_idx = self.epsilon_greedy_action(state_disc)
+                if self.force_buy(state_disc):
+                    action_idx = 2
+                else:
+                    # Epsilon-greedy action
+                    action_idx = self.epsilon_greedy_action(state_disc)
+
                 chosen_action = self.discrete_actions[action_idx]
 
                 # Step environment
@@ -215,12 +219,15 @@ class QAgentDataCenter:
                 rolling_avg_price = np.mean(self.price_history)
 
                 shaped_reward =  rolling_reward(chosen_action, reward, rolling_avg_price)
+                shaped_reward.clip(min=-50, max=50)
 
                 #####################################
                 #  Reward agent for storing energy  #
                 #####################################
 
                 energy_proportional_reward = next_state[0] * self.storage_factor
+                if state[0] >= 170:
+                    energy_proportional_reward = -energy_proportional_reward
                 shaped_reward += energy_proportional_reward
 
                 # Discretize next state
@@ -273,6 +280,10 @@ class QAgentDataCenter:
                 total_reward += reward
                 state = next_state
 
+                if random.uniform(0, 1) < self.epsilon:
+                    if state[2] == 1:
+                        self.env.storage_level = random.choice([0, 10, 20, 30, 40, 50])
+
             # Decay epsilon after each full episode
             if self.epsilon > self.epsilon_min:
                 self.epsilon *= self.epsilon_decay
@@ -290,7 +301,7 @@ class QAgentDataCenter:
 
             print(total_reward)
 
-        np.save('final_q_table_1.npy', self.Q_table)
+        np.save('best_one_yet.npy', self.Q_table)
         print("Training finished!")
 
     def act(self, state):
@@ -322,21 +333,25 @@ if __name__ == "__main__":
     # Create agent
     agent = QAgentDataCenter(
         environment=env,
-        episodes=100,         # you can reduce or increase
-        learning_rate=0.1,
-        discount_rate=0.95,
+        episodes=20,         # you can reduce or increase
+        learning_rate=0.005,
+        discount_rate=0.999,
         epsilon=1.0,
         epsilon_min=0.05,
-        epsilon_decay=0.95,  # so we see faster decay for demo
-        rolling_window_size=72
+        epsilon_decay=0.67,  # so we see faster decay for demo
+        rolling_window_size=27
 
     )
 
     # Train
-    agent.train()
+    # agent.train()
 
     # Test run with the greedy policy
     print("\nRunning a quick greedy run with the learned policy:")
+
+    env = DataCenterEnv(path_to_test_data='validate.xlsx')
+
+    agent.Q_table = np.load('best_one_yet.npy')
 
     # We do a fresh manual reset for the test run:
     env.day = 1
