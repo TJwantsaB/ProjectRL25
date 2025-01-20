@@ -6,8 +6,8 @@ from matplotlib.colors import ListedColormap, BoundaryNorm
 def plot_prices_and_actions(
     csv_file: str,
     out_png: str = "prices_actions_plot.png",
-    day_start: int = 30,
-    day_end: int = 40
+    day_start: int = 70,
+    day_end: int = 80
 ):
     """
     Reads a CSV with columns [day,hour,price,action,reward].
@@ -52,8 +52,8 @@ def plot_prices_and_actions(
         alpha=0.8,
         edgecolors='k'  # small black edge around points (optional)
     )
-    plt.xlabel("Days (fractional)")
-    plt.ylabel("Day-ahead price (euro/MWh)")
+    plt.xlabel("Days")
+    plt.ylabel("Price (euro/MWh)")
     plt.title(f"Price vs. Time (Days {day_start} to {day_end})")
 
     # 6) Colorbar with discrete ticks
@@ -64,7 +64,7 @@ def plot_prices_and_actions(
 
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig(out_png)
+    plt.savefig(out_png, dpi=900)
     print(f"Plot saved to '{out_png}'.")
     plt.show()
 

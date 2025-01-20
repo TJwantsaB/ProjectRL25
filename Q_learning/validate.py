@@ -4,58 +4,72 @@ import sys
 from env import DataCenterEnv
 
 ACTIONS = [-1.0, 0.0, 1.0]
+# Q-table shape: (12,1,24,1,3) => [storage_bins, price_bins, hour_bins, day_bins, action_dim]
+# If you only care about "hour", you'll do something like s_idx=0, p_idx=0, h_idx=(hour-1), d_idx=0.
 
-def get_hour_state(observation):
+def get_qtable_indices(observation):
     """
-    For now this is only for hours. If we want more we have to change this code!
-    """
-    # observation[2] is hour, an integer 1..24
-    hour = int(observation[2])
-    state_idx = hour - 1  # shift so 1..24 -> 0..23
-    return state_idx
+    Because your Q-table has shape (12,1,24,1,3), but you're only using 'hour' as your state,
+    we clamp s_idx=0, p_idx=0, d_idx=0, and let h_idx = hour-1.
 
+    obs = [storage_level, price, hour, day]
+    hour in 1..24 => h_idx in 0..23
+    """
+    # Hard-code the other dims to 0 since you have only 1 bin for them
+    s_idx = 0  # or whichever index you'd want if you actually used storage
+    p_idx = 0
+    d_idx = 0
+
+    hour = int(observation[2])  # 1..24
+    h_idx = hour - 1
+    if h_idx < 0: 
+        h_idx = 0
+    elif h_idx > 23:
+        h_idx = 23
+
+    return (s_idx, p_idx, h_idx, d_idx)
 
 def run_validation(q_table: np.ndarray, val_path: str):
     """
-    Runs validation using the given Q-table (numpy array) on the specified dataset path.
+    Runs validation using the given Q-table (shape [12,1,24,1,3]) on val_path.
     Prints total reward at the end.
     """
-    # Create environment for validation
     env = DataCenterEnv(path_to_test_data=val_path)
 
+    # Manual reset
     env.day = 1
     env.hour = 1
     env.storage_level = 0.0
-    obs = env.observation()  # [storage_level, price, hour, day]
+    obs = env.observation()  # => [storage_level, price, hour, day]
     done = False
     total_reward = 0.0
 
-    # Run the environment
     while not done:
-        # Convert to hour-based discrete state
-        state_idx = get_hour_state(obs)
-        # Pick the best action from the Q-table (greedy)
-        action_idx = np.argmax(q_table[state_idx, :])
+        # Convert env.observation -> Q-table indices
+        (s_idx, p_idx, h_idx, d_idx) = get_qtable_indices(obs)
+
+        # Pick best action from Q-table last axis
+        # q_table[s_idx, p_idx, h_idx, d_idx, :] => shape (3,) => pick argmax
+        action_idx = np.argmax(q_table[s_idx, p_idx, h_idx, d_idx, :])
+        
+        # Convert action_idx -> real action in [-1,0,1]
         action = ACTIONS[action_idx]
 
-        # Step the environment
+        # Step environment
         next_obs, reward, terminated = env.step(action)
         total_reward += reward
         obs = next_obs
         done = terminated
 
-        # print(f"Day={env.day}, Hour={env.hour}, Action={action}, Reward={reward}")
-
     print("Validation finished.")
     print(f"Total reward over validation data: {total_reward:.2f}")
-
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--qtable",
         type=str,
-        default="../Output/q_table.npy",
+        default="../Graphs/final_q_table.npy",
         help="Path to the saved Q-table (NumPy .npy file)."
     )
     parser.add_argument(
@@ -66,20 +80,17 @@ def main():
     )
     args = parser.parse_args()
 
+    # Load Q-table
     try:
         q_table = np.load(args.qtable)
     except IOError:
         print(f"Error: Could not load Q-table from {args.qtable}.")
         sys.exit(1)
 
-    # Check shape if you like (e.g., should be 24 x 3 if hour-only states)
     print(f"Q-table loaded from {args.qtable} with shape {q_table.shape}.")
 
-    # Run validation
+    # Validate
     run_validation(q_table, args.valdata)
-
 
 if __name__ == "__main__":
     main()
-
-# TEST TEST TEST

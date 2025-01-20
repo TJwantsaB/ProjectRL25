@@ -128,7 +128,7 @@ def run_greedy_and_save(
 if __name__ == "__main__":
     # Example usage
     run_greedy_and_save(
-        "../Data/train.xlsx",
+        "../Data/validate.xlsx",
         "final_q_table.npy",
-        out_csv="greedy_results_final.csv",
+        out_csv="greedy_results_final_validate.csv",
     )

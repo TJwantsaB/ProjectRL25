@@ -6,10 +6,10 @@ from matplotlib.colors import BoundaryNorm, ListedColormap
 def plot_prices_and_actions(
     csv_file: str,
     out_png: str = "prices_actions_plot.png",
-    day_start: int = 10,
-    day_end: int = 20,
-    vmin: float = -2.0,
-    vmax: float = 2.0,
+    day_start: int = 70,
+    day_end: int = 80,
+    vmin: float = -1.0,
+    vmax: float = 1.0,
     connect_daily=True
 ):
     """
@@ -62,8 +62,8 @@ def plot_prices_and_actions(
     )
 
     # Customize axes and title
-    plt.xlabel("Days (fractional)", fontsize=12)
-    plt.ylabel("Day-ahead price (euro/MWh)", fontsize=12)
+    plt.xlabel("Days", fontsize=12)
+    plt.ylabel("Price (euro/MWh)", fontsize=12)
     title = f"Illustration of Electricity Prices with Actions\n"
     if day_start is not None and day_end is not None:
         title += f"(Days {day_start} to {day_end})"
@@ -79,8 +79,8 @@ def plot_prices_and_actions(
 
     # Save and show the plot
     plt.tight_layout()
-    plt.savefig(out_png, dpi=150)
+    plt.savefig(out_png, dpi=900)
     print(f"Plot saved to '{out_png}'.")
     plt.show()
 
-plot_prices_and_actions("greedy_results_final.csv", out_png="my_actions_plot.png")
+plot_prices_and_actions("greedy_results_final_validate.csv", out_png="my_actions_plot_pretty_validate.png")
