@@ -42,6 +42,7 @@ class QAgentHourOnly:
         self.num_states = 24
         # Actions: sell=-1, none=0, buy=1
         self.actions = [-1, 0, 1]
+        # self.actions = [0, 1]
         self.num_actions = len(self.actions)
 
         # Q-table shape: [24 x 3]
@@ -150,11 +151,16 @@ class QAgentHourOnly:
                     next_obs, raw_reward, terminated_env = self.env.step(corrected_action_value)
                     total_reward += raw_reward
 
+                    if raw_reward > 0:
+                        # big revenue => big negative in shaped form, but "less negative" if it's high
+                        shaped_reward = - (1000 - raw_reward)
+                    else:
+                        # raw_reward < 0 => we bought => shaped_reward is also negative
+                        shaped_reward = raw_reward
+
                     # if raw_reward > 0:
-                    #     # big revenue => big negative in shaped form, but "less negative" if it's high
-                    #     shaped_reward = - (1000 - raw_reward)
+                    #     shaped_reward = - (10000 / obs[1])
                     # else:
-                    #     # raw_reward < 0 => we bought => shaped_reward is also negative
                     #     shaped_reward = raw_reward
 
                     # Q-learning update
@@ -162,8 +168,8 @@ class QAgentHourOnly:
                     old_q = self.Q_table[state_idx, action_idx]
                     next_max = np.max(self.Q_table[next_state_idx])
 
-                    td_target = raw_reward + self.gamma * next_max
-                    # td_target = shaped_reward + self.gamma * next_max
+                    # td_target = raw_reward + self.gamma * next_max
+                    td_target = shaped_reward + self.gamma * next_max
                     new_q = old_q + self.alpha * (td_target - old_q)
                     self.Q_table[state_idx, action_idx] = new_q
 
