@@ -262,7 +262,7 @@ def main():
         train_path=args.train_path,
         episodes=args.episodes,
         discount_rate=args.discount_rate,
-        learning_rate=0.1,
+        learning_rate=0.05,
         epsilon=1.0,
         epsilon_min=0.05,
         epsilon_decay=args.epsilon_decay,
