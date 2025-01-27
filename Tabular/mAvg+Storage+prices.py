@@ -336,55 +336,47 @@ if __name__ == "__main__":
     parser.add_argument('--path', type=str, default='train.xlsx')
     args = parser.parse_args()
 
-    # Define ranges for min_max_price and price bins
-    min_max_price_range = range(10, 101, 10)  # From 10 to 100 with step size 10
-    price_bins = [3, 5, 7]
+    # Create environment
+    env = DataCenterEnv(path_to_test_data=args.path)
 
-    for min_max_price in min_max_price_range:
-        for price_bin in price_bins:
-            print(f"\nRunning training with min_max_price={min_max_price} and price_bin={price_bin}\n")
+    # Create agent
+    agent = QAgentDataCenter(
+        environment=env,
+        episodes=30,         # you can reduce or increase
+        learning_rate=0.005,
+        discount_rate=1,
+        epsilon=1.0,
+        epsilon_min=0.00,
+        epsilon_decay=0.67,  # so we see faster decay for demo
+        rolling_window_size=27,
+        min_max_price=50
+    )
 
-            # Create environment
-            env = DataCenterEnv(path_to_test_data=args.path, price_bin=price_bin)
+    # Train
+    agent.train()
 
-            # Create agent
-            agent = QAgentDataCenter(
-                environment=env,
-                episodes=30,         # you can reduce or increase
-                learning_rate=0.005,
-                discount_rate=1,
-                epsilon=1.0,
-                epsilon_min=0.00,
-                epsilon_decay=0.67,  # so we see faster decay for demo
-                rolling_window_size=27,
-                min_max_price=min_max_price
-            )
+    # Test run with the greedy policy
+    print("\nRunning a quick greedy run with the learned policy:")
 
-            # Train
-            agent.train()
+    env = DataCenterEnv(path_to_test_data='validate.xlsx')
 
-            # Test run with the greedy policy
-            print("\nRunning a quick greedy run with the learned policy:")
+    # We do a fresh manual reset for the test run:
+    env.day = 1
+    env.hour = 1
+    env.storage_level = 0.0
+    state = env.observation()
+    terminated = False
+    total_greedy_reward = 0.0
 
-            env = DataCenterEnv(path_to_test_data='validate.xlsx', price_bin=price_bin)
+    while not terminated:
+        if env.day >= len(env.price_values):
+            break
+        action = agent.act(state)
+        next_state, reward, terminated = env.step(action)
+        total_greedy_reward += reward
+        state = next_state
+        print("Action:", action)
+        print("Next state:", next_state)
+        print("Reward:", reward)
 
-            # We do a fresh manual reset for the test run:
-            env.day = 1
-            env.hour = 1
-            env.storage_level = 0.0
-            state = env.observation()
-            terminated = False
-            total_greedy_reward = 0.0
-
-            while not terminated:
-                if env.day >= len(env.price_values):
-                    break
-                action = agent.act(state)
-                next_state, reward, terminated = env.step(action)
-                total_greedy_reward += reward
-                state = next_state
-                print("Action:", action)
-                print("Next state:", next_state)
-                print("Reward:", reward)
-
-            print(f"Total reward using the greedy policy after training: {total_greedy_reward:.2f}\n")
+    print(f"Total reward using the greedy policy after training: {total_greedy_reward:.2f}")
