@@ -8,3 +8,26 @@ Typically, the environment's reward is just the negative cost of buying
   # TODO: Make bins based on percentages of the price range! Maybe try moving average? Past prices? Try static first
 
    # Mod 7 or so, TODO: Do we want to add month?
+
+
+   Quantile ranges of the quantiles of the past x amount of days
+
+1
+-6105163.49
+-3914310.32
+
+2
+-6072593.16
+-4150042.00
+
+3
+-6020468.96
+-4133271.58
+
+4
+-6224980.64
+-4145466.50
+
+5
+-6068262.38
+-4150042.00

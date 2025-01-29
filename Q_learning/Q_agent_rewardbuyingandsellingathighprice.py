@@ -7,17 +7,24 @@ from env import DataCenterEnv
 
 def rolling_reward(chosen_action, reward, rolling_avg_price):
     """
-    Shaped reward based on the environment’s raw reward plus
-    a term that depends on the average price * chosen_action.
-    
+    Shaped reward now explicitly rewards both buying (+1) and selling (-1).
+    This does not differentiate high/low price explicitly,
+    but it ensures nonzero actions are positively encouraged beyond the raw reward.
+
     chosen_action in [-1,0,1]
     reward          = raw_reward from environment
     rolling_avg_price = mean of historical prices so far
 
-    Example logic:
-      shaped_reward = rolling_avg_price * 10 * chosen_action + reward
+    Example logic here:
+      - If buy (chosen_action=1), shaped_reward = reward + rolling_avg_price * 10
+      - If sell (chosen_action=-1), shaped_reward = reward + rolling_avg_price * 10
+      - If do nothing (0), shaped_reward = reward
     """
-    return rolling_avg_price * 10.0 * chosen_action + reward
+    shaped_reward = reward
+    if chosen_action != 0:
+        # Add a positive bonus for any "active" action (buy or sell)
+        shaped_reward += rolling_avg_price * 10.0
+    return shaped_reward
 
 
 class QAgentHourOnly:
@@ -85,39 +92,39 @@ class QAgentHourOnly:
         hour = int(obs[2])
         return hour - 1
 
-        def _apply_forced_logic(self, action_value):
-            """
-            Copy the environment's forced logic checks so the final action used
-            is exactly what the environment will do. This avoids the agent
-            "thinking" it did a different action than was actually applied.
-            """
-            storage_level = self.env.storage_level
-            hour = self.env.hour
-            shortfall = self.daily_energy_demand - storage_level
-            hours_left = 24 - hour
-            max_possible_buy = hours_left * self.max_power_rate
+    def _apply_forced_logic(self, action_value):
+        """
+        Copy the environment's forced logic checks so the final action used
+        is exactly what the environment will do. This avoids the agent
+        "thinking" it did a different action than was actually applied.
+        """
+        storage_level = self.env.storage_level
+        hour = self.env.hour
+        shortfall = self.daily_energy_demand - storage_level
+        hours_left = 24 - hour
+        max_possible_buy = hours_left * self.max_power_rate
 
-            final_action = float(np.clip(action_value, -1, 1))
+        final_action = float(np.clip(action_value, -1, 1))
 
-            # (A) If shortfall > max_possible_buy => forcibly buy fraction
-            if shortfall > max_possible_buy:
-                needed_now = shortfall - max_possible_buy
-                forced_fraction = min(1.0, needed_now / self.max_power_rate)
-                if final_action < forced_fraction:
-                    final_action = forced_fraction
+        # (A) If shortfall > max_possible_buy => forcibly buy fraction
+        if shortfall > max_possible_buy:
+            needed_now = shortfall - max_possible_buy
+            forced_fraction = min(1.0, needed_now / self.max_power_rate)
+            if final_action < forced_fraction:
+                final_action = forced_fraction
 
-            # (B) Disallow selling if it makes shortfall unfixable
-            if final_action < 0:
-                sell_mwh = -final_action * self.max_power_rate
-                potential_storage = storage_level - sell_mwh
-                potential_shortfall = self.daily_energy_demand - potential_storage
-                hours_left_after = hours_left - 1
-                max_buy_after = hours_left_after * self.max_power_rate
+        # (B) Disallow selling if it makes shortfall unfixable
+        if final_action < 0:
+            sell_mwh = -final_action * self.max_power_rate
+            potential_storage = storage_level - sell_mwh
+            potential_shortfall = self.daily_energy_demand - potential_storage
+            hours_left_after = hours_left - 1
+            max_buy_after = hours_left_after * self.max_power_rate
 
-                if potential_shortfall > max_buy_after:
-                    final_action = 0.0
+            if potential_shortfall > max_buy_after:
+                final_action = 0.0
 
-            return float(np.clip(final_action, -1, 1))
+        return float(np.clip(final_action, -1, 1))
 
     def epsilon_greedy_action(self, state_idx):
         """
@@ -166,7 +173,7 @@ class QAgentHourOnly:
                     self.price_history.append(current_price)
                     rolling_avg_price = np.mean(self.price_history)
 
-                    # 2) Compute shaped reward
+                    # 2) Compute shaped reward (our new version that rewards both buy & sell)
                     shaped_reward = rolling_reward(corrected_action_value, raw_reward, rolling_avg_price)
 
                     # Q-update
@@ -267,11 +274,11 @@ def main():
         epsilon_min=0.05,
         epsilon_decay=args.epsilon_decay,
         max_days=args.max_days,
-        csv_filename="../Output/training_stats.csv"
+        csv_filename="../Output/training_stats_rewardbuysell.csv"
     )
 
     agent.train()
-    agent.save_q_table("../Output/q_table.npy")
+    agent.save_q_table("../Output/q_table_rewardbuysell.npy")
 
     if args.val_path is not None:
         run_validation(agent, args.val_path, max_days=args.val_days)
