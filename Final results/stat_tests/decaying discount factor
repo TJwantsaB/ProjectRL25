@@ -1,0 +1,19 @@
+Comparison: Best Training Rewards
+  Agent A - Mean: -5203576.8710, Std: 8273.1630
+  Agent B - Mean: -5121731.2020, Std: 11725.4368
+  Test Used: t-test
+  Statistic: -24.8606
+  p-value: 0.0000
+  Levene's p-value (variance check): 0.1765
+  Shapiro-Wilk p-value (Agent A): 0.0810
+  Shapiro-Wilk p-value (Agent B): 0.2937
+
+Comparison: Validation Rewards
+  Agent A - Mean: -3515713.1230, Std: 5966.7623
+  Agent B - Mean: -3473035.9160, Std: 11580.3530
+  Test Used: Welch's t-test
+  Statistic: -14.2798
+  p-value: 0.0000
+  Levene's p-value (variance check): 0.0412
+  Shapiro-Wilk p-value (Agent A): 0.6074
+  Shapiro-Wilk p-value (Agent B): 0.7602

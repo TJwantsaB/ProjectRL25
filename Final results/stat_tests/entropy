@@ -1,0 +1,53 @@
+# Define agent configurations
+agent_a_kwargs = {
+    "environment": DataCenterEnv(path_to_test_data="train.xlsx"),
+    "episodes": 20,
+    "learning_rate": 0.005,
+    "epsilon": 1.0,
+    "epsilon_decay": 0.67,
+    "discount_rate": 1,
+    "rolling_window_size": 27,
+    "storage_factor": 1,
+}
+
+agent_b_kwargs = {
+    "environment": DataCenterEnv(path_to_test_data="train.xlsx"),
+    "episodes": 20,
+    "learning_rate": 0.005,
+    "epsilon": 1.0,
+    "epsilon_decay": 0.67,
+    "discount_rate": 1,
+    "rolling_window_size": 27,
+    "storage_factor": 1,
+    "bin_size_price": 5,
+    "min_max_price": 50,
+}
+
+
+Test Used: Mann-Whitney U test
+Statistic: 1367.0000
+p-value: 0.0000
+Levene's p-value (variance check): 0.0000
+Shapiro-Wilk p-value (Agent A): 0.0000
+Shapiro-Wilk p-value (Agent B): 0.0000
+
+
+Comparison: Best Training Rewards
+  Agent A - Mean: -5306557.9320, Std: 3284.4840
+  Agent B - Mean: -5213948.0360, Std: 7289.7494
+  Test Used: Welch's t-test
+  Statistic: -50.4879
+  p-value: 0.0000
+  Levene's p-value (variance check): 0.0014
+  Shapiro-Wilk p-value (Agent A): 0.9015
+  Shapiro-Wilk p-value (Agent B): 0.7223
+
+Comparison: Validation Rewards
+  Agent A - Mean: -3628059.4000, Std: 0.0000
+  Agent B - Mean: -3516951.9440, Std: 5584.2945
+  Test Used: Welch's t-test
+  Statistic: -86.7265
+  p-value: 0.0000
+  Levene's p-value (variance check): 0.0000
+  Shapiro-Wilk p-value (Agent A): 1.0000
+  Shapiro-Wilk p-value (Agent B): 0.8940
